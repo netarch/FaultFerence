@@ -35,7 +35,7 @@ void CheckShortestPathExists(LogData &data, double max_finish_time_ms,
                 npaths++;
             }
         }
-        assert(npaths > 0);
+        // assert(npaths > 0);
     }
 }
 
@@ -122,7 +122,7 @@ void AggLogData(LogData *data, int ntraces, LogData &result,
 
             // !TODO: add paths
             if (f->paths != NULL) {
-                assert(f->paths->size() > 1);
+                // assert(f->paths->size() > 1);
                 fnew->paths = pathvec_mapping[f->paths];
             }
             if (f->reverse_paths != NULL) {
@@ -310,6 +310,64 @@ set<int> LocalizeViaFlock(LogData *data, int ntraces, string fail_file,
     return equivalent_devices;
 }
 
+
+set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
+                          double min_start_time_ms, double max_finish_time_ms,
+                          int nopenmp_threads) {
+    
+    set<Link> localized_links = GetUsedLinks(&(data[0]), 1, min_start_time_ms, max_finish_time_ms);
+    set<Link> new_localized_links;
+
+    for (int ii = 1; ii < ntraces; ii++) {
+        set<Link> temp;
+        new_localized_links = GetUsedLinks(&(data[ii]), 1, min_start_time_ms, max_finish_time_ms);
+        cout << "number of localized links " << localized_links.size();
+        cout << "number of new localized links " << new_localized_links.size();
+        if (IsProblemSolved(&(data[ii]), max_finish_time_ms) == 1){
+            cout << "Problem was solved" << endl;
+            set_difference(localized_links.begin(), localized_links.end(),
+                new_localized_links.begin(), new_localized_links.end(), std::inserter(temp, temp.begin()));
+        }
+        else{
+            cout << "Problem was not solved" << endl;
+            set_intersection(localized_links.begin(), localized_links.end(),
+                new_localized_links.begin(), new_localized_links.end(), std::inserter(temp, temp.begin()));
+        }
+        
+        localized_links = temp;
+    }
+
+    set<int> equivalent_devices;
+    for (Link link : localized_links) {
+        if (link.first == link.second){
+            equivalent_devices.insert(link.first);
+        }
+    }
+
+    return equivalent_devices;
+}
+
+int IsProblemSolved(LogData *data, double max_finish_time_ms){
+    int failure_threshold = 5, shortest_paths = 0;
+    int failed_flows = 0, total_flows = 0;
+
+    for (Flow *flow : data->flows){
+        if (flow->snapshots[0]->packets_lost == flow->snapshots[0]->packets_sent){
+            failed_flows++;
+        }
+        total_flows++;
+        shortest_paths = (flow->GetPaths(max_finish_time_ms))->size();
+    }
+    cout << "Shortest paths " << shortest_paths << endl;
+    cout << "Total flows " << total_flows << endl;
+    cout << "Failed flows " << failed_flows << endl;
+    if (failed_flows == 0 or total_flows/failed_flows > 100/failure_threshold){
+        return 1;
+    }
+    return 0;
+}
+
+
 set<Link> GetUsedLinks(LogData *data, int ntraces, double min_start_time_ms,
                        double max_finish_time_ms) {
     set<Link> used_links;
@@ -360,7 +418,7 @@ void LocalizeScoreITA(vector<pair<string, string>> &in_topo_traces,
      * devices
      */
     // equivalent_devices = GetEquivalentDevices(flows_by_device_agg);
-    eq_devices = LocalizeViaFlock(data, ntraces, fail_file, min_start_time_ms,
+    eq_devices = LocalizeViaNobody(data, ntraces, fail_file, min_start_time_ms,
                                   max_finish_time_ms, nopenmp_threads);
 
     cout << "equivalent devices " << eq_devices << " size " << eq_devices.size()

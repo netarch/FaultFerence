@@ -57,6 +57,12 @@ set<int> LocalizeViaFlock(LogData *data, int ntraces, string fail_file,
                           double min_start_time_ms, double max_finish_time_ms,
                           int nopenmp_threads);
 
+int IsProblemSolved(LogData *data, double max_finish_time_ms);
+
+set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
+                          double min_start_time_ms, double max_finish_time_ms,
+                          int nopenmp_threads);
+
 /*
   Coloring based scheme
   Uses information theoretic measure of sets to identify best link removal
