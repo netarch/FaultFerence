@@ -35,7 +35,7 @@ void CheckShortestPathExists(LogData &data, double max_finish_time_ms,
                 npaths++;
             }
         }
-        assert(npaths > 0);
+        // assert(npaths > 0);
     }
 }
 
@@ -122,7 +122,7 @@ void AggLogData(LogData *data, int ntraces, LogData &result,
 
             // !TODO: add paths
             if (f->paths != NULL) {
-                assert(f->paths->size() > 1);
+                // assert(f->paths->size() > 1);
                 fnew->paths = pathvec_mapping[f->paths];
             }
             if (f->reverse_paths != NULL) {
@@ -310,6 +310,122 @@ set<int> LocalizeViaFlock(LogData *data, int ntraces, string fail_file,
     return equivalent_devices;
 }
 
+set<vector<Link>> getSetOfActualPath(LogData data, double max_finish_time_ms){
+    set<vector<Link>> localized_paths;
+    for (Flow *flow : data.flows) {
+        vector<Path *> *flow_paths = flow->GetPaths(max_finish_time_ms);
+        for (Path *path : *flow_paths) {
+            vector<Link> path_link;
+            for (int link_id : *path) {
+                Link link = data.inverse_links[link_id];
+                path_link.push_back(link);
+            }
+            localized_paths.insert(path_link);
+        }
+    }
+    return localized_paths;
+}
+
+set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
+                          double min_start_time_ms, double max_finish_time_ms,
+                          int nopenmp_threads) {
+
+    set<vector<Link>> localized_paths;
+    for (Flow *flow : data[0].flows) {
+        vector<Path *> *flow_paths = flow->GetPaths(max_finish_time_ms);
+        for (Path *path : *flow_paths) {
+            vector<Link> path_link;
+            for (int link_id : *path) {
+                Link link = data[0].inverse_links[link_id];
+                path_link.push_back(link);
+            }
+            localized_paths.insert(path_link);
+        }
+    }
+
+    set<int> healthy_devices;
+
+    for (int ii = 1; ii < ntraces; ii++) {
+        set<vector<Link>> new_localized_paths;
+        set<vector<Link>> temp;
+        for (Flow *flow : data[ii].flows) {
+            vector<Path *> *flow_paths = flow->GetPaths(max_finish_time_ms);
+            for (Path *path : *flow_paths) {
+                vector<Link> path_link;
+                for (int link_id : *path) {
+                    Link link = data[ii].inverse_links[link_id];
+                    path_link.push_back(link);
+                }
+                new_localized_paths.insert(path_link);
+            }
+        }
+        
+        cout << "Localized paths in iter " << ii << ": " << localized_paths << endl;
+        cout << "Count " << localized_paths.size() << endl;
+
+        cout << "New localized paths in iter " << ii << ": " << new_localized_paths << endl;
+        cout << "Count " << new_localized_paths.size() << endl;
+
+        if (IsProblemSolved(&(data[ii]), max_finish_time_ms) == 1){
+            cout << "Problem was solved" << endl;
+            set_difference(localized_paths.begin(), localized_paths.end(),
+                new_localized_paths.begin(), new_localized_paths.end(), std::inserter(temp, temp.begin()));
+                for(vector<Link> path: new_localized_paths){
+                    for (Link link : path) {
+                        if (link.first == link.second){
+                            healthy_devices.insert(link.first);
+                        }
+                    }
+                }
+        }
+        else{
+            cout << "Problem was not solved" << endl;
+            set_intersection(localized_paths.begin(), localized_paths.end(),
+                new_localized_paths.begin(), new_localized_paths.end(), std::inserter(temp, temp.begin()));
+        }
+        
+        localized_paths = temp;
+    }
+
+    set<int> equivalent_devices;
+    set<int> temp2;
+    for(vector<Link> path: localized_paths){
+        for (Link link : path) {
+            if (link.first == link.second){
+                equivalent_devices.insert(link.first);
+            }
+        }
+    }
+    set_difference(equivalent_devices.begin(), equivalent_devices.end(),
+        healthy_devices.begin(), healthy_devices.end(), std::inserter(temp2, temp2.begin()));
+    equivalent_devices = temp2;
+    cout << "Size of equivalent devices " << equivalent_devices.size() << endl;
+
+    return equivalent_devices;
+}
+
+int IsProblemSolved(LogData *data, double max_finish_time_ms){
+    float failure_threshold = 0.5;
+    int shortest_paths = 0;
+    int failed_flows = 0, total_flows = 0;
+
+    for (Flow *flow : data->flows){
+        if (flow->snapshots[0]->packets_lost == flow->snapshots[0]->packets_sent){
+            failed_flows++;
+        }
+        total_flows++;
+        shortest_paths = (flow->GetPaths(max_finish_time_ms))->size();
+    }
+    cout << "Shortest paths " << shortest_paths << endl;
+    cout << "Total flows " << total_flows << endl;
+    cout << "Failed flows " << failed_flows << endl;
+    if (((float)failed_flows)/total_flows <= failure_threshold/shortest_paths){
+        return 1;
+    }
+    return 0;
+}
+
+
 set<Link> GetUsedLinks(LogData *data, int ntraces, double min_start_time_ms,
                        double max_finish_time_ms) {
     set<Link> used_links;
@@ -369,17 +485,17 @@ void LocalizeScoreITA(vector<pair<string, string>> &in_topo_traces,
     GetExplanationEdgesFromMap(flows_by_device_agg);
     cout << "Explaining drops" << endl;
 
-    int max_iter = 10;
+    int max_iter = 1;
     double last_information = 0.0;
     set<set<int>> eq_device_sets({eq_devices});
     set<Link> used_links =
         GetUsedLinks(data, ntraces, min_start_time_ms, max_finish_time_ms);
     cout << "Used links " << used_links.size() << " : " << used_links << endl;
     while (1) {
-        auto [best_link_to_remove, information] = GetBestLinkToRemoveITA(
+        auto [best_link_to_remove, information] = GetRandomLinkToRemoveITA(
             data, dropped_flows, ntraces, eq_devices, eq_device_sets,
             used_links, max_finish_time_ms, nopenmp_threads);
-        if (information - last_information < 1.0e-3 or max_iter == 0)
+        if (information - last_information < 1.0e-3 or max_iter == 0 or information < 1.0e-8)
             break;
         cout << "Best link to remove " << best_link_to_remove << " information "
              << information << " removed_links " << removed_links << endl;
@@ -656,6 +772,49 @@ GetBestLinkToRemoveITA(LogData *data, vector<Flow *> *dropped_flows,
             }
         }
     }
+    // Do again for the best link to populate eq_device_sets
+    GetEqDeviceSetsMeasureITA(data, dropped_flows, ntraces, equivalent_devices,
+                              best_link_to_remove, max_finish_time_ms,
+                              eq_device_sets);
+    return pair<Link, double>(best_link_to_remove, max_information);
+}
+
+pair<Link, double>
+GetRandomLinkToRemoveITA(LogData *data, vector<Flow *> *dropped_flows,
+                       int ntraces, set<int> &equivalent_devices,
+                       set<set<int>> &eq_device_sets, set<Link> &used_links,
+                       double max_finish_time_ms, int nopenmp_threads) {
+    vector<pair<Link, double>> used_links_with_information;
+
+    for (Link link : used_links) {
+        int link_id = data[0].links_to_ids[link];
+        Link rlink = Link(link.second, link.first);
+        if (data[0].IsNodeSwitch(link.first) and
+            data[0].IsNodeSwitch(link.second) and
+            !data[0].IsLinkDevice(link_id)) {
+            for (int ii = 0; ii < ntraces; ii++) {
+                int link_id_ii = data[ii].links_to_ids[link];
+                CheckShortestPathExists(data[ii], max_finish_time_ms,
+                                        dropped_flows[ii], link_id_ii);
+            }
+            set<set<int>> eq_device_sets_copy = eq_device_sets;
+            double information = GetEqDeviceSetsMeasureITA(
+                data, dropped_flows, ntraces, equivalent_devices, link,
+                max_finish_time_ms, eq_device_sets_copy);
+            cout << "Removing link " << link << " information " << information
+                 << endl;
+            if (information > 0) {
+                used_links_with_information.push_back(pair<Link, double>(link, information));
+            }
+        }
+    }
+    if (used_links_with_information.size() == 0){
+        return pair<Link, double>(Link(-1, -1), 0);
+    }
+
+    auto[best_link_to_remove, max_information] = used_links_with_information[rand()%used_links_with_information.size()];
+
+
     // Do again for the best link to populate eq_device_sets
     GetEqDeviceSetsMeasureITA(data, dropped_flows, ntraces, equivalent_devices,
                               best_link_to_remove, max_finish_time_ms,

@@ -6,8 +6,9 @@ logdir=$1
 #topodir=../../ns3/topology/ft_k12_os3
 #topoprefix=ns3ft_deg12_sw180_svr432_os3_i1
 
-topodir=../../ns3/topology/ft_k14_os3
-topoprefix=ns3ft_deg14_sw245_svr686_os3_i1
+topodir=./topologies/
+# topoprefix=topo_rrg_deg20_sw200_svr400_os1_i0
+topoprefix=topo_ft_deg14_sw245_svr686_os3_i0
 
 topofile=${topodir}/${topoprefix}.edgelist
 
@@ -20,7 +21,7 @@ outfile_sim=${logdir}/plog_${nfails}
 
 echo ${nfails}" "${topofile}" "${outfile_sim}
 
-time python3 ../../flow_simulator/flow_simulator.py \
+time python3 ../../../flow_simulator/flow_simulator.py \
     --network_file ${topofile} \
     --nfailures ${nfails} \
     --flows_file ${logdir}/flows \
@@ -78,7 +79,7 @@ do
         topofile_mod=${logdir}/${topoprefix}_${suffix}.edgelist
         echo ${topofile_mod}
         cat ${topofile} | grep -v "${p} ${q}" | grep -v "${q} ${p}"  > ${topofile_mod}
-        time python3 ../../flow_simulator/flow_simulator.py \
+        time python3 ../../../flow_simulator/flow_simulator.py \
             --network_file ${topofile_mod} \
             --nfailures ${nfails} \
             --flows_file ${logdir}/flows_${suffix} \

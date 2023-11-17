@@ -57,6 +57,12 @@ set<int> LocalizeViaFlock(LogData *data, int ntraces, string fail_file,
                           double min_start_time_ms, double max_finish_time_ms,
                           int nopenmp_threads);
 
+int IsProblemSolved(LogData *data, double max_finish_time_ms);
+
+set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
+                          double min_start_time_ms, double max_finish_time_ms,
+                          int nopenmp_threads);
+
 /*
   Coloring based scheme
   Uses information theoretic measure of sets to identify best link removal
@@ -81,6 +87,12 @@ set<Link> GetUsedLinks(LogData *data, int ntraces, double min_start_time_ms,
 
 pair<Link, double>
 GetBestLinkToRemoveITA(LogData *data, vector<Flow *> *dropped_flows,
+                       int ntraces, set<int> &equivalent_devices,
+                       set<set<int>> &eq_device_sets, set<Link> &used_links,
+                       double max_finish_time_ms, int nopenmp_threads);
+
+pair<Link, double>
+GetRandomLinkToRemoveITA(LogData *data, vector<Flow *> *dropped_flows,
                        int ntraces, set<int> &equivalent_devices,
                        set<set<int>> &eq_device_sets, set<Link> &used_links,
                        double max_finish_time_ms, int nopenmp_threads);
