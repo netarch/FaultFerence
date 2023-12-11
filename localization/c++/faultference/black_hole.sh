@@ -1,41 +1,32 @@
-logdir=$1
-
-#topodir=../../ns3/topology/ft_k10_os3
-#topoprefix=ns3ft_deg10_sw125_svr250_os3_i1
-
-#topodir=../../ns3/topology/ft_k12_os3
-#topoprefix=ns3ft_deg12_sw180_svr432_os3_i1
+sequence_mode=$1
+inference_mode=$2
 
 topodir=./topologies/
 # topoprefix=topo_rrg_deg20_sw200_svr400_os1_i0
 topoprefix=topo_ft_deg14_sw245_svr686_os3_i0
-
 topofile=${topodir}/${topoprefix}.edgelist
+logdir=logs/${topoprefix}_${sequence_mode}_${inference_mode}/$(date +%H-%M_%m-%d-%Y)
+
+mkdir -p ${logdir}
+make -s clean; make -s -j8
 
 nfails=1
 nthreads=8
 maxiter=25
+max_links=1
 
-# for the simulator
 outfile_sim=${logdir}/plog_${nfails}
+fail_file=${outfile_sim}.fails
 
-echo ${nfails}" "${topofile}" "${outfile_sim}
-
-time python3 ../../../flow_simulator/flow_simulator.py \
+python3 ../../../flow_simulator/flow_simulator.py \
     --network_file ${topofile} \
     --nfailures ${nfails} \
     --flows_file ${logdir}/flows \
     --outfile ${outfile_sim} > ${logdir}/flowsim_out
-    # --failed_flows_only \
-echo "flow sim done"
-
-make -j8
-max_links=1
-fail_file=${outfile_sim}.fails
+echo "Flow simulation done"
 
 > ${logdir}/input
 inputs=`echo "${fail_file} ${topofile} ${outfile_sim}"`
-echo "Inputs "${inputs}
 
 iter=1
 
@@ -44,10 +35,8 @@ eq_size=0
 
 while [ ${iter} -le ${maxiter} ]
 do
-    echo ${inputs}
     echo ${inputs} >> ${logdir}/input
-    time ./black_hole_estimator_agg 0.0 1000000.01 ${nthreads} ${inputs} > ${logdir}/temp_agg_${iter}
-    # cat ${logdir}/temp_agg_${iter} | grep "Best link to remove" | sed 's/(\|,\|)//g' | awk '{print $5" "$6}' | head -n${max_links} > ${logdir}/links_to_remove_${iter}
+    ./black_hole_estimator_agg 0.0 1000000.01 ${nthreads} ${sequence_mode} ${inference_mode} ${inputs} > ${logdir}/temp_agg_${iter}
     cat ${logdir}/temp_agg_${iter} | grep "Best link to remove" | sed 's/(//'g | sed 's/)//'g | sed 's/,//'g | awk '{print $5" "$6}' | head -n${max_links} > ${logdir}/links_to_remove_${iter}
     new_eq_devices=`cat ${logdir}/temp_agg_${iter} | grep "equivalent devices" | grep "equivalent devices" | sed 's/equivalent devices //' | sed 's/size.*//'`
     new_eq_size=`echo ${new_eq_devices} | sed 's/]//'g | sed 's/\[//'g | awk -F',' '{print NF}'`
@@ -77,9 +66,8 @@ do
         echo "$p $q"
         suffix=iter${iter}_r${p}_${q}
         topofile_mod=${logdir}/${topoprefix}_${suffix}.edgelist
-        echo ${topofile_mod}
         cat ${topofile} | grep -v "${p} ${q}" | grep -v "${q} ${p}"  > ${topofile_mod}
-        time python3 ../../../flow_simulator/flow_simulator.py \
+        python3 ../../../flow_simulator/flow_simulator.py \
             --network_file ${topofile_mod} \
             --nfailures ${nfails} \
             --flows_file ${logdir}/flows_${suffix} \

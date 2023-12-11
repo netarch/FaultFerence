@@ -13,18 +13,22 @@
 using namespace std;
 
 int main(int argc, char *argv[]) {
-    assert(argc >= 7 && argc%2==1);
+    // assert(argc >= 7 && argc%2==1);
     double min_start_time_ms = atof(argv[1]) * 1000.0,
            max_finish_time_ms = atof(argv[2]) * 1000.0;
     int nopenmp_threads = atoi(argv[3]);
     cout << "Using " << nopenmp_threads << " openmp threads" << endl;
 
-    string fail_file(argv[4]);
+    string sequence_mode(argv[4]);
+    string inference_mode(argv[5]);
+    string fail_file(argv[6]);
+    cout << "Sequence mode is " << sequence_mode << endl;
+    cout << "Inference mode is " << inference_mode << endl;
     cout << "Reading failures from " << fail_file << endl;
     auto failed_components = ReadFailuresBlackHole(fail_file);
 
     vector<pair<string, string>> in_topo_traces;
-    for (int ii=5; ii<argc; ii+=2){
+    for (int ii=7; ii<argc; ii+=2){
         string topo_file(argv[ii]);
         cout << "Adding topology file " << topo_file << endl;
         string trace_file(argv[ii+1]);
@@ -36,10 +40,9 @@ int main(int argc, char *argv[]) {
     PATH_KNOWN = false;
     TRACEROUTE_BAD_FLOWS = false;
     INPUT_FLOW_TYPE = APPLICATION_FLOWS;
-    VERBOSE = true;
-
+    VERBOSE = false;
     // GetExplanationEdges(in_topo_traces, max_finish_time_ms, nopenmp_threads);
     // OperatorScheme(in_topo_traces, min_start_time_ms, max_finish_time_ms, nopenmp_threads);
-    LocalizeScoreITA(in_topo_traces, min_start_time_ms, max_finish_time_ms, nopenmp_threads);
+    LocalizeScoreITA(in_topo_traces, min_start_time_ms, max_finish_time_ms, nopenmp_threads, sequence_mode, inference_mode);
     return 0;
 }

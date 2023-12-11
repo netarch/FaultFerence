@@ -15,7 +15,7 @@ using google::dense_hash_map;
 
 const bool LEAFSPINE_NET_BOUNCER = false; //! HACK
 
-bool VERBOSE = true;
+bool VERBOSE = false;
 bool CONSIDER_DEVICE_LINK = true;
 bool TRACEROUTE_BAD_FLOWS = true;
 bool PATH_KNOWN = true;

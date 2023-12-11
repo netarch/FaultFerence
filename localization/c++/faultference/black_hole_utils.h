@@ -70,7 +70,7 @@ set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
 */
 void LocalizeScoreITA(vector<pair<string, string>> &in_topo_traces,
                       double min_start_time_ms, double max_finish_time_ms,
-                      int nopenmp_threads);
+                      int nopenmp_threads, string sequence_mode, string inference_mode);
 
 void GetEqDeviceSetsITA(LogData *data, vector<Flow *> *dropped_flows,
                         int ntraces, set<int> &equivalent_devices,

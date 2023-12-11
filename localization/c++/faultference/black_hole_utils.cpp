@@ -452,7 +452,7 @@ set<Link> GetUsedLinks(LogData *data, int ntraces, double min_start_time_ms,
 
 void LocalizeScoreITA(vector<pair<string, string>> &in_topo_traces,
                       double min_start_time_ms, double max_finish_time_ms,
-                      int nopenmp_threads) {
+                      int nopenmp_threads, string sequence_mode, string inference_mode) {
     int ntraces = in_topo_traces.size();
     vector<Flow *> dropped_flows[ntraces];
     LogData data[ntraces];
@@ -476,8 +476,14 @@ void LocalizeScoreITA(vector<pair<string, string>> &in_topo_traces,
      * devices
      */
     // equivalent_devices = GetEquivalentDevices(flows_by_device_agg);
-    eq_devices = LocalizeViaFlock(data, ntraces, fail_file, min_start_time_ms,
-                                  max_finish_time_ms, nopenmp_threads);
+    if (inference_mode == "Flock"){
+        eq_devices = LocalizeViaFlock(data, ntraces, fail_file, min_start_time_ms,
+                                    max_finish_time_ms, nopenmp_threads);
+    }
+    else if (inference_mode == "Baseline"){
+        eq_devices = LocalizeViaNobody(data, ntraces, fail_file, min_start_time_ms,
+                                    max_finish_time_ms, nopenmp_threads);
+    }
 
     cout << "equivalent devices " << eq_devices << " size " << eq_devices.size()
          << endl;
@@ -491,10 +497,20 @@ void LocalizeScoreITA(vector<pair<string, string>> &in_topo_traces,
     set<Link> used_links =
         GetUsedLinks(data, ntraces, min_start_time_ms, max_finish_time_ms);
     cout << "Used links " << used_links.size() << " : " << used_links << endl;
+    Link best_link_to_remove;
+    double information;
     while (1) {
-        auto [best_link_to_remove, information] = GetRandomLinkToRemoveITA(
-            data, dropped_flows, ntraces, eq_devices, eq_device_sets,
-            used_links, max_finish_time_ms, nopenmp_threads);
+        if (sequence_mode == "Random"){
+            tie(best_link_to_remove, information) = GetRandomLinkToRemoveITA(
+                data, dropped_flows, ntraces, eq_devices, eq_device_sets,
+                used_links, max_finish_time_ms, nopenmp_threads);
+        }
+        else if (sequence_mode == "Intelligent"){
+            tie(best_link_to_remove, information) = GetBestLinkToRemoveITA(
+                data, dropped_flows, ntraces, eq_devices, eq_device_sets,
+                used_links, max_finish_time_ms, nopenmp_threads);
+        }
+
         if (information - last_information < 1.0e-3 or max_iter == 0 or information < 1.0e-8)
             break;
         cout << "Best link to remove " << best_link_to_remove << " information "

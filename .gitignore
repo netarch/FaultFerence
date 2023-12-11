@@ -1,7 +1,5 @@
 *.o
-
 *.swp
-
 *.pyc
-
 .DS_store
+logs/
