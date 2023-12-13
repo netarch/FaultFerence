@@ -93,6 +93,7 @@ do
     done < "${micro_change_dir}/iter_${iter}"
     (( iter++ ))
 done
+rm -rf ${plog_dir}/*
 echo $iter > ${logdir}/num_steps
 echo $SECONDS > ${logdir}/time_taken
 echo "Localization complete in $iter steps. Logs in $logdir"
