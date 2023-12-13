@@ -27,7 +27,7 @@ do
             for inference_mode in "Flock" "Baseline"
             do
                 echo "*** Iteration" $i $sequence_mode $inference_mode $topo  >> ${topo_dir}/logs 2>&1
-                ./black_hole.sh $sequence_mode $inference_mode $topo $outfile_sim >> ${topo_dir}/logs 2>&1
+                ./main.sh $sequence_mode $inference_mode $topo $outfile_sim >> ${topo_dir}/logs 2>&1
             done
         done
     done

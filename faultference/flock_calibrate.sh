@@ -47,4 +47,4 @@ done
 echo ${inputs}
 echo ${inputs} >> ${logdir}/input
 
-time ./black_hole_calibrate 0.0 1000000.01 ${nthreads} ${inputs} > ${logdir}/param
+time ./flock_calibrate 0.0 1000000.01 ${nthreads} ${inputs} > ${logdir}/param

@@ -1,7 +1,7 @@
 #include "bayesian_net.h"
 #include "bayesian_net_continuous.h"
 #include "bayesian_net_sherlock.h"
-#include "black_hole_utils.h"
+#include "faultference_utils.h"
 #include "common_testing_system.h"
 #include "doubleO7.h"
 #include "net_bouncer.h"

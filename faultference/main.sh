@@ -47,18 +47,10 @@ eq_size=0
 while [ ${iter} -le ${maxiter} ]
 do
     echo ${inputs} >> ${logdir}/input
-    ./black_hole_estimator_agg 0.0 1000000.01 ${nthreads} ${sequence_mode} ${inference_mode} ${inputs} > ${localization_logs}/iter_${iter}
+    ./estimator_agg 0.0 1000000.01 ${nthreads} ${sequence_mode} ${inference_mode} ${inputs} > ${localization_logs}/iter_${iter}
     cat ${localization_logs}/iter_${iter} | grep "Best link to remove" | sed 's/(//'g | sed 's/)//'g | sed 's/,//'g | awk '{print $5" "$6}' | head -n${max_links} > ${micro_change_dir}/iter_${iter}
     new_eq_devices=`cat ${localization_logs}/iter_${iter} | grep "equivalent devices" | grep "equivalent devices" | sed 's/equivalent devices //' | sed 's/size.*//'`
     new_eq_size=`echo ${new_eq_devices} | sed 's/]//'g | sed 's/\[//'g | awk -F',' '{print NF}'`
-    
-    # if [[ "${new_eq_size}" == "${eq_size}" ]]
-    # then
-    #     if [[ ${new_eq_size} -le 2 ]]
-    #     then 
-    #         break
-    #     fi
-    # fi
 
     if [[ "${new_eq_devices}" == "${eq_devices}" ]]
     then 
@@ -88,7 +80,6 @@ do
             --outfile ${plog_dir}/${suffix} > ${flowsim_logs}/${suffix} \
             --fails_from_file \
             --fail_file ${fail_file}
-            # --failed_flows_only \
         inputs=`echo "${inputs} ${topofile_mod} ${plog_dir}/${suffix}"`
     done < "${micro_change_dir}/iter_${iter}"
     (( iter++ ))

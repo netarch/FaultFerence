@@ -1,5 +1,5 @@
-#ifndef __BLACK_HOLE_UTILS__
-#define __BLACK_HOLE_UTILS__
+#ifndef __FAULTFERENCE_UTILS__
+#define __FAULTFERENCE_UTILS__
 
 #include "utils.h"
 #include <bits/stdc++.h>

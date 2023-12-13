@@ -3,7 +3,7 @@
 #include "bayesian_net_sherlock.h"
 #include "doubleO7.h"
 #include "net_bouncer.h"
-#include "black_hole_utils.h"
+#include "faultference_utils.h"
 #include "utils.h"
 #include <assert.h>
 #include <bits/stdc++.h>
