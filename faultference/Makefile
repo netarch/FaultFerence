@@ -6,7 +6,7 @@ LIBDIR = -L../sparsehash/libs -L../utils/ -L../algorithms/
 INCLUDE = -I../sparsehash/include -I../utils/ -I../algorithms/
 LIBS = -lflock -lflockalg
 
-ESTIMATOR_MAINS = black_hole_estimator black_hole_estimator_agg 
+ESTIMATOR_MAINS = black_hole_estimator_agg
 
 OBJS = black_hole_utils.o
 
