@@ -3,4 +3,5 @@
 *.pyc
 .DS_store
 logs/
+sweep_logs/
 *.a
