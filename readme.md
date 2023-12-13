@@ -8,16 +8,19 @@ make -j8
 make install
 ```
 
-## Directory structure
-    - c++
-        - utils (general class definitions- flows, parsing of traces etc.)
-        - algorithms (inference algorithms: Flock, Sherlock, NetBouncer, 007)
-        - analysis (runs inference end-to-end for various gray failure types)
-        - collector (host-agent and the collector process for an real/emulated datacenter)
-
 ## Compilation
-    - "make" from the top level directory
+From the top-level directory, run the following commands,
+```
+make clean; make -j8
+cd faultference; make clean; make -j8
+```
 
 ## Running
-    - To reproduce paper results:
-        - cd analysis; run reproduce_results with appropriate parameters 
+From the top-level directory, run the following commands,
+```
+cd faultference; bash ./sweep_inferences_sequences.sh
+```
+Parameters can be tuned within `sweep_inferences_sequences.sh` and `main.sh`
+
+## Evaluation
+Results and logs will be present in `faultference/sweep_logs` and `faultference/logs`. Plots can be generated from scripts in `plots/`.
