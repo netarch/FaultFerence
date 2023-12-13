@@ -3,7 +3,9 @@ make -s clean; make -s -j8
 sweep_logdir=sweep_logs/$(date +%Y-%m-%d-%H-%M)
 mkdir -p ${sweep_logdir}
 
+# Parameters
 iters=10
+nfails=1
 
 for i in $(seq $iters)
 do
@@ -13,7 +15,6 @@ do
         mkdir -p ${topo_dir}
         outfile_sim=${topo_dir}/initial
         topofile=./topologies/${topo}.edgelist
-        nfails=1
 
         python3 ../flow_simulator/flow_simulator.py \
             --network_file ${topofile} \

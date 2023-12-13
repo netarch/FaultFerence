@@ -15,6 +15,7 @@ plog_dir=${logdir}/plog_dir
 
 mkdir -p ${logdir} ${flowsim_logs} ${modified_topo_dir} ${localization_logs} ${micro_change_dir} ${plog_dir}
 
+# Parameters
 nfails=1
 nthreads=8
 maxiter=25
