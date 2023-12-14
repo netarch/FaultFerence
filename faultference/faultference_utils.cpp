@@ -781,8 +781,7 @@ double GetEqDeviceSetsMeasureITA(LogData *data, vector<Flow *> *dropped_flows,
 }
 
 // Pairs: count number of pairs that will be distinguished by the micro-change
-// sequence Replacement of GetExplanationEdgesAgg eq_device_sets should at least
-// have the entire equivalent_devices set
+// sequence. eq_device_sets should have the entire equivalent_devices set
 int GetEqDeviceSetsMeasurePairs(LogData *data, vector<Flow *> *dropped_flows,
                                 int ntraces, set<int> &equivalent_devices,
                                 Link removed_link, double max_finish_time_ms,

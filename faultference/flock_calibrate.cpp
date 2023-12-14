@@ -73,6 +73,20 @@ void CalibrateFlock(vector<pair<string, string>> topo_traces,
     for (int i = 0; i < params.size(); i++) {
         cout << "Calibrate " << params[i] << " " << results[i] << endl;
     }
+    double recall_threshold = 0.95;
+    vector<double> best_param = {};
+    PDD best_acc(0.0, 0.0);
+    while (best_param.size() == 0 and recall_threshold >= 0.0){
+        for (int i = 0; i < params.size(); i++) {
+            if (results[i][1] >= recall_threshold and results[i][0] > best_acc[0]){
+                best_param = params[i];
+                best_acc = results[i];
+            }
+        }
+        recall_threshold -= 0.05;
+    }
+    cout << "Chosen calibrated point " << best_param << " with accuracy "
+         << best_acc << endl;
 }
 
 void CalibrateFlock1(vector<pair<string, string>> topo_traces,
