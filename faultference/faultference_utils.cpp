@@ -481,7 +481,7 @@ void LocalizeScoreITA(vector<pair<string, string>> &in_topo_traces,
         eq_devices = LocalizeViaFlock(data, ntraces, fail_file, min_start_time_ms,
                                     max_finish_time_ms, nopenmp_threads);
     }
-    else if (inference_mode == "Baseline"){
+    else if (inference_mode == "Naive"){
         eq_devices = LocalizeViaNobody(data, ntraces, fail_file, min_start_time_ms,
                                     max_finish_time_ms, nopenmp_threads);
     }

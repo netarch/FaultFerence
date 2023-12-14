@@ -3,10 +3,10 @@ sequence_mode=$1
 inference_mode=$2
 topoprefix=$3
 outfile_sim=$4
+logdir=$5
 
 topodir=./topologies/
 topofile=${topodir}/${topoprefix}.edgelist
-logdir=logs/${topoprefix}/${sequence_mode}/${inference_mode}/$(date +%Y-%m-%d-%H-%M)
 flowsim_logs=${logdir}/flowsim
 localization_logs=${logdir}/localization
 modified_topo_dir=${logdir}/modified_topos
@@ -17,7 +17,7 @@ mkdir -p ${logdir} ${flowsim_logs} ${modified_topo_dir} ${localization_logs} ${m
 
 # Parameters
 nfails=1
-nthreads=8
+nthreads=4
 maxiter=25
 max_links=1
 
@@ -41,6 +41,7 @@ fail_file=${outfile_sim}.fails
 inputs=`echo "${fail_file} ${topofile} ${outfile_sim}"`
 
 iter=1
+num_steps=0
 
 eq_devices=""
 eq_size=0
@@ -70,6 +71,7 @@ do
     echo "Iter: $iter, Size: ${new_eq_size}, Devices: ${new_eq_devices}" >> ${logdir}/equivalent_devices
     while read p q; do
         echo "$iter ($p $q)" >> ${logdir}/steps
+        (( num_steps++ ))
         echo "Removing link $p $q"
         suffix=iter${iter}_r${p}_${q}
         topofile_mod=${modified_topo_dir}/${topoprefix}_${suffix}.edgelist
@@ -86,6 +88,6 @@ do
     (( iter++ ))
 done
 rm -rf ${plog_dir}/*
-echo $iter > ${logdir}/num_steps
+echo $num_steps > ${logdir}/num_steps
 echo $SECONDS > ${logdir}/time_taken
 echo "Localization complete in $iter steps. Logs in $logdir"
