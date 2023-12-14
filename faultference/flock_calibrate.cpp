@@ -1,15 +1,17 @@
+#include <assert.h>
+#include <bits/stdc++.h>
+
+#include <chrono>
+#include <iostream>
+
 #include "bayesian_net.h"
 #include "bayesian_net_continuous.h"
 #include "bayesian_net_sherlock.h"
-#include "faultference_utils.h"
 #include "common_testing_system.h"
 #include "doubleO7.h"
+#include "faultference_utils.h"
 #include "net_bouncer.h"
 #include "utils.h"
-#include <assert.h>
-#include <bits/stdc++.h>
-#include <chrono>
-#include <iostream>
 
 using namespace std;
 

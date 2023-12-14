@@ -60,8 +60,8 @@ set<int> LocalizeViaFlock(LogData *data, int ntraces, string fail_file,
 int IsProblemSolved(LogData *data, double max_finish_time_ms);
 
 set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
-                          double min_start_time_ms, double max_finish_time_ms,
-                          int nopenmp_threads);
+                           double min_start_time_ms, double max_finish_time_ms,
+                           int nopenmp_threads);
 
 void GetDeviceColors(set<int> &equivalent_devices, map<int, int> &device_colors,
                      set<set<int>> &eq_device_sets);
@@ -75,7 +75,8 @@ void GetColorCounts(map<int, int> &device_colors, map<int, int> &col_cnts);
 */
 void LocalizeScoreITA(vector<pair<string, string>> &in_topo_traces,
                       double min_start_time_ms, double max_finish_time_ms,
-                      int nopenmp_threads, string sequence_mode, string inference_mode);
+                      int nopenmp_threads, string sequence_mode,
+                      string inference_mode);
 
 void GetEqDeviceSetsITA(LogData *data, vector<Flow *> *dropped_flows,
                         int ntraces, set<int> &equivalent_devices,
@@ -97,7 +98,8 @@ GetBestLinkToRemoveITA(LogData *data, vector<Flow *> *dropped_flows,
                        double max_finish_time_ms, int nopenmp_threads);
 
 /*
-  Pick micro-change sequence to maximize number of pairs that can be distinguished
+  pick micro-change sequence to maximize number of pairs that can be
+  distinguished
 */
 int GetEqDeviceSetsMeasurePairs(LogData *data, vector<Flow *> *dropped_flows,
                                 int ntraces, set<int> &equivalent_devices,
@@ -106,15 +108,15 @@ int GetEqDeviceSetsMeasurePairs(LogData *data, vector<Flow *> *dropped_flows,
 
 pair<Link, double>
 GetBestLinkToRemovePairs(LogData *data, vector<Flow *> *dropped_flows,
-                       int ntraces, set<int> &equivalent_devices,
-                       set<set<int>> &eq_device_sets, set<Link> &used_links,
-                       double max_finish_time_ms, int nopenmp_threads);
+                         int ntraces, set<int> &equivalent_devices,
+                         set<set<int>> &eq_device_sets, set<Link> &used_links,
+                         double max_finish_time_ms, int nopenmp_threads);
 
 pair<Link, double>
 GetRandomLinkToRemoveITA(LogData *data, vector<Flow *> *dropped_flows,
-                       int ntraces, set<int> &equivalent_devices,
-                       set<set<int>> &eq_device_sets, set<Link> &used_links,
-                       double max_finish_time_ms, int nopenmp_threads);
+                         int ntraces, set<int> &equivalent_devices,
+                         set<set<int>> &eq_device_sets, set<Link> &used_links,
+                         double max_finish_time_ms, int nopenmp_threads);
 
 void GetEqDevicesInFlowPaths(LogData &data, Flow *flow,
                              set<int> &equivalent_devices,
