@@ -12,7 +12,8 @@ class BayesianNet : public Estimator {
                                 Hypothesis &localized_devices,
                                 int nopenmp_threads);
     const bool PRINT_SCORES = true;
-    const int MAX_FAILS = 20;
+    // TODO: Rework
+    const int MAX_FAILS = 1;
     const int NUM_CANDIDATES = max(15, 5 * MAX_FAILS);
     const int NUM_TOP_HYPOTHESIS_AT_EACH_STAGE = 50; //!TODO: 4
     // For printing purposes
