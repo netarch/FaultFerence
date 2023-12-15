@@ -19,6 +19,7 @@ bool VERBOSE = false;
 bool CONSIDER_DEVICE_LINK = true;
 bool TRACEROUTE_BAD_FLOWS = true;
 bool PATH_KNOWN = true;
+bool ACTIVE_PROBES_PATH_KNOWN = true;
 
 pthread_mutex_t mutex_getline = PTHREAD_MUTEX_INITIALIZER;
 InputFlowType INPUT_FLOW_TYPE = ALL_FLOWS;

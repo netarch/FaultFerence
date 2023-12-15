@@ -464,8 +464,8 @@ set<Link> GetUsedLinks(LogData *data, int ntraces, double min_start_time_ms,
     return used_links;
 }
 
-void LocalizeScoreITA(vector<pair<string, string>> &in_topo_traces,
-                      double min_start_time_ms, double max_finish_time_ms,
+void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
+                     double min_start_time_ms, double max_finish_time_ms,
                       int nopenmp_threads, string sequence_mode,
                       string inference_mode) {
     int ntraces = in_topo_traces.size();
@@ -512,32 +512,44 @@ void LocalizeScoreITA(vector<pair<string, string>> &in_topo_traces,
     set<Link> used_links =
         GetUsedLinks(data, ntraces, min_start_time_ms, max_finish_time_ms);
     cout << "Used links " << used_links.size() << " : " << used_links << endl;
-    Link best_link_to_remove;
     double last_score = 0.0;
     double curr_score;
     while (1) {
-        if (sequence_mode == "Random") {
-            tie(best_link_to_remove, curr_score) = GetRandomLinkToRemoveITA(
-                data, dropped_flows, ntraces, eq_devices, eq_device_sets,
-                used_links, max_finish_time_ms, nopenmp_threads);
-        } else if (sequence_mode == "Intelligent") {
-            // tie(best_link_to_remove, curr_score) = GetBestLinkToRemoveITA(
-            tie(best_link_to_remove, curr_score) = GetBestLinkToRemovePairs(
-                data, dropped_flows, ntraces, eq_devices, eq_device_sets,
-                used_links, max_finish_time_ms, nopenmp_threads);
-        }
+        MicroChange mc;
+        tie(mc, curr_score)= GetBestMicroChange(data, dropped_flows, ntraces,
+                                  eq_devices, eq_device_sets, used_links,
+                                  max_finish_time_ms, sequence_mode, nopenmp_threads);
 
         if (curr_score - last_score < 1.0e-3 or max_iter == 0 or
             curr_score < 1.0e-8)
             break;
-        cout << "Best link to remove " << best_link_to_remove << " score "
-             << curr_score << " removed_links " << removed_links << endl;
+        // cout << "Best MicroChange: " << mc << " score " << curr_score << endl;
+        cout<< eq_devices << endl;
         last_score = curr_score;
         max_iter--;
-        removed_links.insert(best_link_to_remove);
-        Link rlink(best_link_to_remove.second, best_link_to_remove.first);
-        removed_links.insert(rlink);
     }
+}
+
+pair<MicroChange, double>
+GetBestMicroChange(LogData *data, vector<Flow *> *dropped_flows,
+                   int ntraces, set<int> &eq_devices,
+                   set<set<int>> &eq_device_sets, set<Link> &used_links,
+                   double max_finish_time_ms, string sequence_mode,
+                   int nopenmp_threads) {
+    Link best_link_to_remove;
+    double score;
+    if (sequence_mode == "Random") {
+        tie(best_link_to_remove, score) = GetRandomLinkToRemoveITA(
+            data, dropped_flows, ntraces, eq_devices, eq_device_sets,
+            used_links, max_finish_time_ms, nopenmp_threads);
+    } else if (sequence_mode == "Intelligent") {
+        // tie(best_link_to_remove, score) = GetBestLinkToRemoveITA(
+        tie(best_link_to_remove, score) = GetBestLinkToRemovePairs(
+            data, dropped_flows, ntraces, eq_devices, eq_device_sets,
+            used_links, max_finish_time_ms, nopenmp_threads);
+    }
+    RemoveLinkMc mc(best_link_to_remove);
+    return pair<MicroChange, double>(mc, score);
 }
 
 void LocalizeScoreAgg(vector<pair<string, string>> &in_topo_traces,

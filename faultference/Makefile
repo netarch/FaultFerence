@@ -8,14 +8,17 @@ LIBS = -lflock -lflockalg
 
 ESTIMATOR_MAINS = estimator_agg
 
-OBJS = faultference_utils.o
+OBJS = microchange.o faultference_utils.o
 
 all: $(ESTIMATOR_MAINS)
 
 $(ESTIMATOR_MAINS): %: %.cpp $(OBJS)
 	$(CC) $(INCLUDE) $(CFLAGS) ${OBJS} -o $@ $< ${LIBDIR} ${LIBS}
 
-faultference_utils.o: faultference_utils.cpp faultference_utils.h flow.h defs.h utils.h utils.cpp
+microchange.o: microchange.h flow.h defs.h utils.h utils.cpp
+	$(CC) $(INCLUDE) $(CFLAGS) -c microchange.cpp
+
+faultference_utils.o: microchange.h faultference_utils.cpp faultference_utils.h flow.h defs.h utils.h utils.cpp
 	$(CC) $(INCLUDE) $(CFLAGS) -c faultference_utils.cpp
 
 clean:	

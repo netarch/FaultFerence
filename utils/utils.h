@@ -17,8 +17,8 @@ using namespace std;
 
 inline constexpr bool PARALLEL_IO = false;
 const bool CONSIDER_REVERSE_PATH = false;
-bool ACTIVE_PROBES_PATH_KNOWN = true;
 
+extern bool ACTIVE_PROBES_PATH_KNOWN;
 extern bool PATH_KNOWN;
 extern bool VERBOSE;
 extern bool CONSIDER_DEVICE_LINK;

@@ -5,6 +5,7 @@
 #include <bits/stdc++.h>
 #include <chrono>
 #include <iostream>
+#include "microchange.h"
 
 inline bool SortByValueSize(const pair<int, set<Flow *>> &a,
                             const pair<int, set<Flow *>> &b) {
@@ -68,21 +69,28 @@ void GetDeviceColors(set<int> &equivalent_devices, map<int, int> &device_colors,
 
 void GetColorCounts(map<int, int> &device_colors, map<int, int> &col_cnts);
 
-/*
-  Coloring based scheme
-  Uses information theoretic measure of sets to identify best link removal
-  sequence
-*/
-void LocalizeScoreITA(vector<pair<string, string>> &in_topo_traces,
-                      double min_start_time_ms, double max_finish_time_ms,
+void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
+                     double min_start_time_ms, double max_finish_time_ms,
                       int nopenmp_threads, string sequence_mode,
                       string inference_mode);
+
+pair<MicroChange, double>
+GetBestMicroChange(LogData *data, vector<Flow *> *dropped_flows,
+                   int ntraces, set<int> &equivalent_devices,
+                   set<set<int>> &eq_device_sets, set<Link> &used_links,
+                   double max_finish_time_ms, string sequence_mode,
+                   int nopenmp_threads);
 
 void GetEqDeviceSetsITA(LogData *data, vector<Flow *> *dropped_flows,
                         int ntraces, set<int> &equivalent_devices,
                         Link removed_link, double max_finish_time_ms,
                         set<set<int>> &result);
 
+/*
+  Coloring based scheme
+  Uses information theoretic measure of sets to identify best link removal
+  sequence
+*/
 double GetEqDeviceSetsMeasureITA(LogData *data, vector<Flow *> *dropped_flows,
                                  int ntraces, set<int> &equivalent_devices,
                                  Link removed_link, double max_finish_time_ms,
