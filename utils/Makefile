@@ -9,7 +9,7 @@ OBJS = flow.o logdata.o utils.o
 all: libflock.a
 
 libflock.a: $(OBJS)
-	ar crf libflock.a $(OBJS)
+	ar cr libflock.a $(OBJS)
 
 flow.o: flow.cpp utils.cpp flow.h defs.h utils.h
 	$(CC) $(INCLUDE) $(CFLAGS) -c flow.cpp

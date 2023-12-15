@@ -10,7 +10,7 @@ ESTIMATOR_OBJS = bayesian_net.o bayesian_net_continuous.o doubleO7.o score.o net
 all: libflockalg.a
 
 libflockalg.a: $(ESTIMATOR_OBJS)
-	ar crf libflockalg.a $(ESTIMATOR_OBJS)
+	ar cr libflockalg.a $(ESTIMATOR_OBJS)
 
 
 $(ESTIMATOR_OBJS): %.o: %.cpp %.h estimator.h flow.h utils.h logdata.h defs.h utils.h utils.cpp

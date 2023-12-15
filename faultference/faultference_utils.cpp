@@ -317,7 +317,7 @@ set<int> LocalizeViaFlock(LogData *data, int ntraces, string fail_file,
     return equivalent_devices;
 }
 
-set<vector<Link>> getSetOfActualPath(LogData data, double max_finish_time_ms) {
+set<vector<Link>> GetSetOfActualPath(LogData data, double max_finish_time_ms) {
     set<vector<Link>> localized_paths;
     for (Flow *flow : data.flows) {
         vector<Path *> *flow_paths = flow->GetPaths(max_finish_time_ms);

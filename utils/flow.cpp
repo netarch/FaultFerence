@@ -274,7 +274,7 @@ bool Flow::TracerouteFlow(double max_finish_time_ms) {
     return (
         PATH_KNOWN ||
         (TRACEROUTE_BAD_FLOWS && (GetPacketsLost(max_finish_time_ms) > 0)) ||
-        IsFlowActive());
+        (ACTIVE_PROBES_PATH_KNOWN && IsFlowActive()));
 }
 
 bool Flow::IsFlowBad(double max_finish_time_ms) {

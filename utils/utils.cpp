@@ -377,22 +377,23 @@ void GetCompletePaths(Flow *flow, FlowLines &flow_lines, LogData *data,
         if (src == srcrack){
             assert (destrack != dest);
             flow->SetFirstLinkId(result->GetLinkIdUnsafe(Link(srcrack,
-    destrack))); flow->SetLastLinkId(result->GetLinkIdUnsafe(Link(destrack,
-    dest)));
+                                 destrack)));
+            flow->SetLastLinkId(result->GetLinkIdUnsafe(Link(destrack,
+                                dest)));
         }
         else{
             assert (srcrack != dest);
             flow->SetFirstLinkId(result->GetLinkIdUnsafe(Link(flow->src,
-    srcrack))); flow->SetLastLinkId(result->GetLinkIdUnsafe(Link(srcrack,
-    flow->dest)));
+                                 srcrack)));
+            flow->SetLastLinkId(result->GetLinkIdUnsafe(Link(srcrack,
+                                flow->dest)));
         }
         temp_path[thread_num].clear();
         path_nodes[thread_num].clear();
         flow->AddPath(result->GetPointerToPathTaken(
-                           path_nodes[thread_num], temp_path[thread_num], flow),
-    true); flow->AddReversePath(result->GetPointerToPathTaken(
-                           path_nodes[thread_num], temp_path[thread_num], flow),
-    true);
+                      path_nodes[thread_num], temp_path[thread_num], flow), true);
+        flow->AddReversePath(result->GetPointerToPathTaken(
+                      path_nodes[thread_num], temp_path[thread_num], flow), true);
         //flow->PrintInfo();
     }
     else
@@ -472,9 +473,10 @@ void ProcessFlowLines(vector<FlowLines> &all_flow_lines, LogData *result,
         Flow *flow = &(flows_threads[ii]);
         *flow = Flow(src, 0, dest, 0, nbytes, start_time_ms);
 
-        // Set flow paths: If flow active, then there is only one path
-        if (!flow->IsFlowActive())
-            result->GetAllPaths(&flow->paths, srcrack, destrack);
+        // Set flow paths: If flow active and ACTIVE_PROBES_PATH_KNOWN is set
+        // then there is only one path
+        result->GetAllPaths(&flow->paths, srcrack, destrack);
+        assert (flow->paths->size() >= 1);
 
         // Set paths taken by flow
         GetCompletePaths(flow, flow_lines, result, temp_path[thread_num],

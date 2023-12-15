@@ -41,6 +41,7 @@ int main(int argc, char *argv[]) {
     TRACEROUTE_BAD_FLOWS = false;
     INPUT_FLOW_TYPE = APPLICATION_FLOWS;
     VERBOSE = true;
+    ACTIVE_PROBES_PATH_KNOWN = false;
     // GetExplanationEdges(in_topo_traces, max_finish_time_ms, nopenmp_threads);
     // OperatorScheme(in_topo_traces, min_start_time_ms, max_finish_time_ms,
     // nopenmp_threads);
