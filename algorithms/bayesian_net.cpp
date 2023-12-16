@@ -264,7 +264,7 @@ void BayesianNet::SearchHypothesesJle(
     double max_likelihood_this_stage = 0; // empty hypothesis
     double max_likelihood_previous_stage = -1.0e10;
     while (max_likelihood_this_stage > max_likelihood_previous_stage) {
-        // if (nfails >= 3) break;
+        if (nfails > MAX_FAILS) break;
         max_likelihood_previous_stage = max_likelihood_this_stage;
         max_likelihood_this_stage = -1.0e10; //-inf
         auto start_stage_time = chrono::high_resolution_clock::now();
