@@ -515,22 +515,22 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
     double last_score = 0.0;
     double curr_score;
     while (1) {
-        MicroChange mc;
-        tie(mc, curr_score)= GetBestMicroChange(data, dropped_flows, ntraces,
+        MicroChange* mc;
+        tie(mc, curr_score) =  GetBestMicroChange(data, dropped_flows, ntraces,
                                   eq_devices, eq_device_sets, used_links,
                                   max_finish_time_ms, sequence_mode, nopenmp_threads);
 
         if (curr_score - last_score < 1.0e-3 or max_iter == 0 or
             curr_score < 1.0e-8)
             break;
-        // cout << "Best MicroChange: " << mc << " score " << curr_score << endl;
-        cout<< eq_devices << endl;
+
+        cout << "Best MicroChange: " << mc << " score " << curr_score << endl;
         last_score = curr_score;
         max_iter--;
     }
 }
 
-pair<MicroChange, double>
+pair<MicroChange*, double>
 GetBestMicroChange(LogData *data, vector<Flow *> *dropped_flows,
                    int ntraces, set<int> &eq_devices,
                    set<set<int>> &eq_device_sets, set<Link> &used_links,
@@ -548,8 +548,9 @@ GetBestMicroChange(LogData *data, vector<Flow *> *dropped_flows,
             data, dropped_flows, ntraces, eq_devices, eq_device_sets,
             used_links, max_finish_time_ms, nopenmp_threads);
     }
-    RemoveLinkMc mc(best_link_to_remove);
-    return pair<MicroChange, double>(mc, score);
+    RemoveLinkMc* mc = new RemoveLinkMc(best_link_to_remove);
+    cout << mc << endl;
+    return pair<MicroChange*, double>(mc, score);
 }
 
 void LocalizeScoreAgg(vector<pair<string, string>> &in_topo_traces,

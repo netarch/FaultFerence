@@ -74,7 +74,7 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
                       int nopenmp_threads, string sequence_mode,
                       string inference_mode);
 
-pair<MicroChange, double>
+pair<MicroChange*, double>
 GetBestMicroChange(LogData *data, vector<Flow *> *dropped_flows,
                    int ntraces, set<int> &equivalent_devices,
                    set<set<int>> &eq_device_sets, set<Link> &used_links,

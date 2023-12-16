@@ -6,7 +6,7 @@ sweep_logdir=sweep_logs/$(date +%Y-%m-%d-%H-%M-%S)
 mkdir -p ${sweep_logdir}
 
 # Parameters
-iters=10
+iters=1
 nfails=1
 
 iteration_function() {
@@ -25,9 +25,9 @@ iteration_function() {
         --outfile ${outfile_sim} > ${topo_dir}/flowsim_initial
     echo "Flow simulation done"
 
-    for sequence_mode in "Intelligent" "Random"
+    for sequence_mode in "Intelligent" #"Random"
     do
-        for inference_mode in "Flock" "Naive"
+        for inference_mode in "Flock" #"Naive"
         do
             logdir=${topo_dir}/${sequence_mode}/${inference_mode}
             mkdir -p ${logdir}
@@ -39,7 +39,7 @@ iteration_function() {
 
 for i in $(seq $iters)
 do
-    for topo in "topo_ft_deg14_sw245_svr686_os3_i0" "topo_ft_deg16_sw320_svr1024_os3_i0" "topo_ft_deg18_sw405_svr1458_os3_i0" "topo_ft_deg20_sw500_svr2000_os3_i0"
+    for topo in "topo_ft_deg14_sw245_svr686_os3_i0" # "topo_ft_deg16_sw320_svr1024_os3_i0" "topo_ft_deg18_sw405_svr1458_os3_i0" "topo_ft_deg20_sw500_svr2000_os3_i0"
     do        
         iteration_function $i $topo &
         sleep 10

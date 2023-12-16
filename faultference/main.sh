@@ -50,7 +50,7 @@ while [ ${iter} -le ${maxiter} ]
 do
     echo ${inputs} >> ${logdir}/input
     ./estimator_agg 0.0 1000000.01 ${nthreads} ${sequence_mode} ${inference_mode} ${inputs} > ${localization_logs}/iter_${iter}
-    cat ${localization_logs}/iter_${iter} | grep "Best link to remove" | sed 's/(//'g | sed 's/)//'g | sed 's/,//'g | awk '{print $5" "$6}' | head -n${max_links} > ${micro_change_dir}/iter_${iter}
+    cat ${localization_logs}/iter_${iter} | grep "Best MicroChange" | grep "REMOVE_LINK" | sed 's/[^[0-9\.]\[*/ /g' | sed 's/[ ][ ]*/ /g' | awk '{print $1" "$2}' | head -n${max_links} > ${micro_change_dir}/iter_${iter}
     new_eq_devices=`cat ${localization_logs}/iter_${iter} | grep "equivalent devices" | grep "equivalent devices" | sed 's/equivalent devices //' | sed 's/size.*//'`
     new_eq_size=`echo ${new_eq_devices} | sed 's/]//'g | sed 's/\[//'g | awk -F',' '{print NF}'`
 
@@ -87,7 +87,8 @@ do
     done < "${micro_change_dir}/iter_${iter}"
     (( iter++ ))
 done
-rm -rf ${plog_dir}/*
+tar -czvf ${logdir}/plogs.tar.gz -C ${logdir} plog_dir
+rm -rf ${plog_dir}
 echo $num_steps > ${logdir}/num_steps
 echo $SECONDS > ${logdir}/time_taken
 echo "Localization complete in $iter steps. Logs in $logdir"
