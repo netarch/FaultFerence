@@ -584,8 +584,8 @@ int LogData::GetLinkId(Link link) {
 
 int LogData::GetLinkIdUnsafe(Link link) {
     auto it = links_to_ids.find(link);
-    // if (it == links_to_ids.end()) cout << "Link " << link << " not found in
-    // topology" << endl;
+    // if (it == links_to_ids.end()) cout << "Link " << link
+    //     << " not found in topology" << endl;
     assert(it != links_to_ids.end());
     return it->second;
 }

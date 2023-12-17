@@ -6,7 +6,7 @@ sweep_logdir=sweep_logs/$(date +%Y-%m-%d-%H-%M-%S)
 mkdir -p ${sweep_logdir}
 
 # Parameters
-iters=1
+iters=10
 nfails=1
 
 iteration_function() {
@@ -25,7 +25,7 @@ iteration_function() {
         --outfile ${outfile_sim} > ${topo_dir}/flowsim_initial
     echo "Flow simulation done"
 
-    for sequence_mode in "Intelligent" #"Random"
+    for sequence_mode in "Intelligent" "Random"
     do
         for inference_mode in "Flock" #"Naive"
         do
@@ -45,4 +45,3 @@ do
         sleep 10
     done
 done
-wait

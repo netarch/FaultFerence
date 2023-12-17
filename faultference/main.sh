@@ -17,7 +17,7 @@ mkdir -p ${logdir} ${flowsim_logs} ${modified_topo_dir} ${localization_logs} ${m
 
 # Parameters
 nfails=1
-nthreads=4
+nthreads=1
 maxiter=25
 max_links=1
 
@@ -75,7 +75,7 @@ do
         echo "Removing link $p $q"
         suffix=iter${iter}_r${p}_${q}
         topofile_mod=${modified_topo_dir}/${topoprefix}_${suffix}.edgelist
-        cat ${topofile} | grep -v "${p} ${q}" | grep -v "${q} ${p}"  > ${topofile_mod}
+        cat ${topofile} | grep -v "^${p} ${q}$" | grep -v "^${q} ${p}$"  > ${topofile_mod}
         python3 ../flow_simulator/flow_simulator.py \
             --network_file ${topofile_mod} \
             --nfailures ${nfails} \
