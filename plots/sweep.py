@@ -9,26 +9,23 @@ import matplotlib.font_manager as fm
 log_path = sys.argv[1]
 topologies = os.listdir(log_path)
 
-ALL_STEPS = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+ALL_STEPS = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 AVG_STEPS = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 
+# Schema of the log path should be <logdir>/<topology>/<iteration>/<sequence_scheme>/<inference_scheme>/
 for topology in topologies:
-    print(topology)
+    topo_degree = int(topology.lstrip("topo_ft_deg")[:2])
     topology_path = os.path.join(log_path, topology)
-    for sequence_scheme in os.listdir(topology_path):
-        print(sequence_scheme)
-        sequence_path = os.path.join(topology_path, sequence_scheme)
-        for inference_scheme in os.listdir(sequence_path):
-            print(inference_scheme)
-            inference_path = os.path.join(sequence_path, inference_scheme)
-            if not inference_scheme == "Flock" or not sequence_scheme == "Intelligent":
-                continue
-            num_steps = [int(open(os.path.join(inference_path, iteration, "num_steps")).read()) for iteration in os.listdir(inference_path)]
-            topo_degree = int(topology.lstrip("topo_ft_deg")[:2])
-            print(topo_degree)
-            print(num_steps)
-            ALL_STEPS[sequence_scheme][inference_scheme][topo_degree] = num_steps
-            AVG_STEPS[sequence_scheme][inference_scheme][topo_degree] = np.mean(num_steps)
+    for iter_index in os.listdir(topology_path):
+        iter_path = os.path.join(topology_path, iter_index)
+        for sequence_scheme in os.listdir(iter_path):
+            sequence_path = os.path.join(topology_path, sequence_scheme)
+            for inference_scheme in os.listdir(sequence_path):
+                inference_path = os.path.join(sequence_path, inference_scheme)
+                num_steps = int(open(os.path.join(inference_path, "num_steps")).read())
+                ALL_STEPS[sequence_scheme][inference_scheme][topo_degree].append(num_steps)
+
+    AVG_STEPS[sequence_scheme][inference_scheme][topo_degree] = np.mean(ALL_STEPS[sequence_scheme][inference_scheme][topo_degree])
 
 
 fm.fontManager.addfont("./gillsans.ttf")
