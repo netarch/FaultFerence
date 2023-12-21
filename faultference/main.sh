@@ -17,8 +17,8 @@ mkdir -p ${logdir} ${flowsim_logs} ${modified_topo_dir} ${localization_logs} ${m
 
 # Parameters
 nfails=1
-nthreads=1
-maxiter=25
+nthreads=2
+maxiter=200
 max_links=1
 
 echo "nfails: ${nfails}" >> ${logdir}/config

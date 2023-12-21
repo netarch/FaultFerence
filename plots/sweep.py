@@ -7,25 +7,29 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 
 log_path = sys.argv[1]
-topologies = os.listdir(log_path)
 
 ALL_STEPS = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 AVG_STEPS = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 
 # Schema of the log path should be <logdir>/<topology>/<iteration>/<sequence_scheme>/<inference_scheme>/
-for topology in topologies:
+for topology in os.listdir(log_path):
     topo_degree = int(topology.lstrip("topo_ft_deg")[:2])
     topology_path = os.path.join(log_path, topology)
     for iter_index in os.listdir(topology_path):
         iter_path = os.path.join(topology_path, iter_index)
         for sequence_scheme in os.listdir(iter_path):
-            sequence_path = os.path.join(topology_path, sequence_scheme)
+            sequence_path = os.path.join(iter_path, sequence_scheme)
+            if not os.path.isdir(sequence_path):
+                continue
             for inference_scheme in os.listdir(sequence_path):
                 inference_path = os.path.join(sequence_path, inference_scheme)
                 num_steps = int(open(os.path.join(inference_path, "num_steps")).read())
                 ALL_STEPS[sequence_scheme][inference_scheme][topo_degree].append(num_steps)
 
-    AVG_STEPS[sequence_scheme][inference_scheme][topo_degree] = np.mean(ALL_STEPS[sequence_scheme][inference_scheme][topo_degree])
+for sequence_scheme in ALL_STEPS:
+    for inference_scheme in ALL_STEPS[sequence_scheme]:
+        for topo_degree in ALL_STEPS[sequence_scheme][inference_scheme]:
+            AVG_STEPS[sequence_scheme][inference_scheme][topo_degree] = np.mean(ALL_STEPS[sequence_scheme][inference_scheme][topo_degree])
 
 
 fm.fontManager.addfont("./gillsans.ttf")
@@ -33,7 +37,7 @@ matplotlib.rcParams.update({'font.size': 28, 'font.family': "GillSans"})
 
 colors = ['#cc6600', '#330066', '#af0505', '#db850d', '#a5669f', '#028413', '#000000', '#0e326d']
 markers = ['o', 's', '^', 'v', 'p', '*', 'p', 'h']
-linestyles = ["-", ":", "-."]
+linestyles = ["-", ":", "-.", "dotted"]
 
 fig = plt.figure(figsize=(8, 6.5))
 ax = plt.subplot(1, 1, 1)

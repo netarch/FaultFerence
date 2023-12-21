@@ -13,8 +13,8 @@ maxiter=16
 #topodir=../../ns3/topology/ft_k14_os3
 #topoprefix=ns3ft_deg14_sw245_svr686_os3_i1
 
-topodir=../../ns3/topology/ft_k16_os3
-topoprefix=ns3ft_deg16_sw320_svr1024_os3_i1
+topodir=topologies
+topoprefix=topo_ft_deg16_sw320_svr1024_os3_i0
 
 topofile=${topodir}/${topoprefix}.edgelist
 echo ${nfails}" "${topofile}
