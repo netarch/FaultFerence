@@ -3,6 +3,7 @@ import networkx as nx
 import random
 import numpy as np
 import math
+import os
 
 ## For hardware calibration ##
 ## random: seeds 1-4, seeds 9-12, seeds 17-20
@@ -11,19 +12,17 @@ import math
 UNIFORM = True
 NB_PROBES = True
 
-if not len(sys.argv) == 6: 
-	print("Required number of arguments: 5.", len(sys.argv)-1, "provided")
-	print("Arguments: <x> <y> <instance number> <prefixFile> <bi-directional:true/false>")
+if not len(sys.argv) == 4: 
+	print("Required number of arguments: 3.", len(sys.argv)-1, "provided")
+	print("Arguments: <x> <y> <bi-directional:true/false>")
 	sys.exit()
 
 x = int(sys.argv[1])
 y = int(sys.argv[2])
 switches = x + 2 * y
 num_servers = x * (x + y)
-instance = int(sys.argv[3])
-prefixFile = sys.argv[4]
-bi_dir = sys.argv[5]
-outputFile = "%s_x%d_y%d_i%d.edgelist" % (prefixFile, x, y, instance)
+bi_dir = sys.argv[3]
+outputFile = "ls_x%d_y%d_bidir_%s.edgelist" % (prefixFile, x, y, instance, bi_dir)
 
 G = nx.Graph()
 for leaf in range(y, x+2*y):

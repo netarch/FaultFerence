@@ -1,18 +1,17 @@
 import sys
 import networkx as nx
+import os
 
-if not len(sys.argv) == 7: 
-	print("Required number of arguments: 6.", len(sys.argv), "provided")
-	print("Usage: python networkGenerator_ns3.py <degree> <switches> <servers> <oversubscription> <instance number> <prefixFile>")
+if not len(sys.argv) == 5: 
+	print("Required number of arguments: 4.", len(sys.argv), "provided")
+	print("Arguments: <degree> <switches> <servers> <oversubscription>")
 	sys.exit()
 
 totDegree = int(sys.argv[1])
 switches = int(sys.argv[2])
 servers = int(sys.argv[3])
 oversubscription = int(sys.argv[4])
-instance = int(sys.argv[5])
-prefixFile = sys.argv[6]
-outputFile = "%s_deg%d_sw%d_svr%d_os%d_i%d.edgelist" % (prefixFile, totDegree, switches, servers, oversubscription, instance)
+outputFile = "rg_deg%d_sw%d_svr%d_os%d.edgelist" % (totDegree, switches, servers, oversubscription)
 
 HOST_OFFSET = 10000
 
@@ -25,13 +24,11 @@ for i in range(switches):
         deg = deg+1
     degseq.append(totDegree-deg)
 
-print("Degree sequence : ", degseq)
-
 G = nx.random_degree_sequence_graph(degseq)
 while (not nx.is_connected(G)):
 	G = nx.random_degree_sequence_graph(degseq)
 
-with open(outputFile, 'w') as f:
+with open(os.path.join("..", outputFile), 'w') as f:
     edges =  G.edges()
     for (u,v) in edges:
         f.write(str(u) + " " + str(v) + "\n")
