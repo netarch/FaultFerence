@@ -277,13 +277,20 @@ void OperatorScheme(vector<pair<string, string>> in_topo_traces,
 
 set<int> LocalizeViaFlock(LogData *data, int ntraces, string fail_file,
                           double min_start_time_ms, double max_finish_time_ms,
-                          int nopenmp_threads) {
+                          int nopenmp_threads, string topo_name) {
     BayesianNet estimator;
-    // vector<double> params = {1.0 - 0.49, 5.0e-3, -10.0}; // ft_k10
-    // vector<double> params = {1.0 - 0.41, 1.0e-3, -10.0}; // ft_k12
-    vector<double> params = {1.0 - 0.49, 0.75e-3, -10.0}; // ft_k14'
 
-    estimator.SetParams(params);
+    map <string, vector<double>> params;
+    params["ft_deg10"] = {1.0 - 0.49, 5.0e-3, -10.0};
+    params["ft_deg12"] = {1.0 - 0.41, 1.0e-3, -10.0};
+    params["ft_deg14"] = {1.0 - 0.49, 0.75e-3, -10.0};
+    // params["ft_deg16"]
+    // params["ft_deg18"]
+    // params["ft_deg20"]
+    // params["rg_deg10"]
+
+
+    estimator.SetParams(params[topo_name]);
     PATH_KNOWN = false;
     TRACEROUTE_BAD_FLOWS = false;
     INPUT_FLOW_TYPE = APPLICATION_FLOWS;
@@ -467,7 +474,7 @@ set<Link> GetUsedLinks(LogData *data, int ntraces, double min_start_time_ms,
 void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
                      double min_start_time_ms, double max_finish_time_ms,
                       int nopenmp_threads, string sequence_mode,
-                      string inference_mode) {
+                      string inference_mode, string topo_name) {
     int ntraces = in_topo_traces.size();
     vector<Flow *> dropped_flows[ntraces];
     LogData data[ntraces];
@@ -487,18 +494,14 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
                         flows_by_device_agg, max_finish_time_ms);
 
     set<int> eq_devices;
-    /* Use a fault localization algorithm to obtain equivalent set of localized
-     * devices
-     */
-    // equivalent_devices = GetEquivalentDevices(flows_by_device_agg);
     if (inference_mode == "Flock") {
         eq_devices =
             LocalizeViaFlock(data, ntraces, fail_file, min_start_time_ms,
-                             max_finish_time_ms, nopenmp_threads);
+                             max_finish_time_ms, nopenmp_threads, topo_name);
     } else if (inference_mode == "Naive") {
         eq_devices =
             LocalizeViaNobody(data, ntraces, fail_file, min_start_time_ms,
-                              max_finish_time_ms, nopenmp_threads);
+                              max_finish_time_ms, nopenmp_threads, topo_name);
     }
 
     cout << "equivalent devices " << eq_devices << " size " << eq_devices.size()

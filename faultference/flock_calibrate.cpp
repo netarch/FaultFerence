@@ -39,16 +39,6 @@ vector<vector<double>> GetFlockParams() {
                 params.push_back(vector<double>{1.0 - p1c, p2, -nprior});
         }
     }
-    /*
-    for (double p1c = 1.0e-2; p1c <= 3.0e-2 + eps; p1c += 4.0e-2) {
-        for (double p2 = 1.0e-3; p2 <= 3.0e-3 + eps; p2 += 4.0e-3) {
-            if (p2 >= p1c - 0.5e-3)
-                continue;
-            for (double nprior : {2})
-                params.push_back(vector<double>{1.0 - p1c, p2, -nprior});
-        }
-    }
-    */
     return params;
 }
 
