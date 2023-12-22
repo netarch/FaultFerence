@@ -3,7 +3,7 @@ nthreads=8
 maxiter=32
 
 topodir=topologies
-topoprefix=topo_ft_deg16_sw320_svr1024_os3_i0
+topoprefix=ft_deg20_sw500_svr2000_os3_i0
 
 logdir=calibration_logs/${topoprefix}/$(date +%Y-%m-%d-%H-%M-%S)
 mkdir -p ${logdir}
@@ -36,4 +36,4 @@ echo "Flow simulations done"
 
 echo ${inputs} >> ${logdir}/input
 
-./flock_calibrate 0.0 1000000.01 ${nthreads} ${inputs} > ${logdir}/logs
+./flock_calibrate 0.0 1000000.01 ${nthreads} ${inputs} > ${logdir}/logs 2>&1

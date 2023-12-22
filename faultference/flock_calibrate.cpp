@@ -32,7 +32,7 @@ vector<vector<double>> GetFlockParams() {
     vector<vector<double>> params;
     double eps = 1.0e-10;
     for (double p1c = 1.0e-2; p1c <= 75.0e-2 + eps; p1c += 8.0e-2) {
-        for (double p2 = 0.01e-3; p2 <= 1.5e-3 + eps; p2 += 0.25e-3) {
+        for (double p2 = 1.0e-6; p2 <= 1500.0e-6 + eps; p2 += 150.0e-6) {
             if (p2 >= p1c - 0.5e-3)
                 continue;
             for (double nprior : {10, 20})
@@ -53,7 +53,7 @@ void CalibrateFlock(vector<pair<string, string>> topo_traces,
     PATH_KNOWN = false;
     TRACEROUTE_BAD_FLOWS = false;
     INPUT_FLOW_TYPE = APPLICATION_FLOWS;
-    VERBOSE = false;
+    VERBOSE = true;
 
     for (auto &pss : topo_traces)
         __trace_files__.push_back(pss.second);

@@ -342,7 +342,7 @@ set<vector<Link>> GetSetOfActualPath(LogData data, double max_finish_time_ms) {
 
 set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
                            double min_start_time_ms, double max_finish_time_ms,
-                           int nopenmp_threads) {
+                           int nopenmp_threads, string topo_name) {
 
     set<vector<Link>> localized_paths;
     for (Flow *flow : data[0].flows) {
