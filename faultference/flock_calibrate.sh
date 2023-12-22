@@ -1,27 +1,17 @@
-logdir=$1
-
 nfails=1
 nthreads=8
 maxiter=16
 
-#topodir=../../ns3/topology/ft_k10_os3
-#topoprefix=ns3ft_deg10_sw125_svr250_os3_i1
-
-#topodir=../../ns3/topology/ft_k12_os3
-#topoprefix=ns3ft_deg12_sw180_svr432_os3_i1
-
-#topodir=../../ns3/topology/ft_k14_os3
-#topoprefix=ns3ft_deg14_sw245_svr686_os3_i1
-
 topodir=topologies
 topoprefix=topo_ft_deg16_sw320_svr1024_os3_i0
 
-topofile=${topodir}/${topoprefix}.edgelist
-echo ${nfails}" "${topofile}
-
-make -j8
+logdir=calibration_logs/$(date +%Y-%m-%d-%H-%M-%S)/${topoprefix}
 mkdir -p ${logdir}
 touch ${logdir}/input
+
+topofile=${topodir}/${topoprefix}.edgelist
+
+make -s clean; make -s -j8
 inputs=""
 
 iter=1
@@ -32,19 +22,18 @@ do
     tracefile=${outdir}/plog_${nfails}
     mkdir -p ${outdir}
 
-    time python3 ../flow_simulator/flow_simulator.py \
+    python3 ../flow_simulator/flow_simulator.py \
         --network_file ${topofile} \
         --nfailures ${nfails} \
         --flows_file ${outdir}/flows \
-        --outfile ${tracefile} > ${outdir}/flowsim_out
-    echo "flow sim done"
+        --outfile ${tracefile} > ${outdir}/flowsim_out &
 
     inputs=`echo "${inputs} ${topofile} ${tracefile}"`
     (( iter++ ))
-    sleep 3
 done
+wait
+echo "Flow simulations done"
 
-echo ${inputs}
 echo ${inputs} >> ${logdir}/input
 
-time ./flock_calibrate 0.0 1000000.01 ${nthreads} ${inputs} > ${logdir}/param
+./flock_calibrate 0.0 1000000.01 ${nthreads} ${inputs} > ${logdir}/param
