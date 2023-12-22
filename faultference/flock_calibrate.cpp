@@ -53,7 +53,7 @@ void CalibrateFlock(vector<pair<string, string>> topo_traces,
     PATH_KNOWN = false;
     TRACEROUTE_BAD_FLOWS = false;
     INPUT_FLOW_TYPE = APPLICATION_FLOWS;
-    VERBOSE = true;
+    VERBOSE = false;
 
     for (auto &pss : topo_traces)
         __trace_files__.push_back(pss.second);

@@ -282,13 +282,18 @@ set<int> LocalizeViaFlock(LogData *data, int ntraces, string fail_file,
 
     map <string, vector<double>> params;
     params["ft_deg10"] = {1.0 - 0.49, 5.0e-3, -10.0};
-    params["ft_deg12"] = {1.0 - 0.41, 1.0e-3, -10.0};
-    params["ft_deg14"] = {1.0 - 0.49, 0.75e-3, -10.0};
-    // params["ft_deg16"]
-    // params["ft_deg18"]
-    // params["ft_deg20"]
-    // params["rg_deg10"]
-
+    params["ft_deg12"] = {1.0 - 0.49, 6.0e-4, -20.0};
+    params["ft_deg14"] = {1.0 - 0.41, 1.5e-4, -20.0};
+    params["ft_deg16"] = {1.0 - 0.49, 1.0e-6, -10.0};
+    params["ft_deg18"] = {1.0 - 0.41, 1.0e-6, -10.0};
+    params["ft_deg20"] = {1.0 - 0.41, 1.0e-6, -20.0};
+    
+    params["rg_deg10"] = {1.0 - 0.73, 1.0e-6, -10.0};
+    params["rg_deg12"] = {1.0 - 0.73, 1.0e-6, -10.0};
+    params["rg_deg14"] = {1.0 - 0.73, 1.0e-6, -10.0};
+    params["rg_deg16"] = {1.0 - 0.73, 1.0e-6, -10.0};
+    params["rg_deg18"] = {1.0 - 0.73, 3.0e-4, -10.0};
+    params["rg_deg20"] = {1.0 - 0.73, 1.0e-6, -10.0};
 
     estimator.SetParams(params[topo_name]);
     PATH_KNOWN = false;

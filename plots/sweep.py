@@ -13,7 +13,7 @@ AVG_STEPS = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 
 # Schema of the log path should be <logdir>/<topology>/<iteration>/<sequence_scheme>/<inference_scheme>/
 for topology in os.listdir(log_path):
-    topo_degree = int(topology.lstrip("topo_ft_deg")[:2])
+    topo_degree = int(topology.lstrip("ft_deg")[:2])
     topology_path = os.path.join(log_path, topology)
     for iter_index in os.listdir(topology_path):
         iter_path = os.path.join(topology_path, iter_index)
