@@ -7,7 +7,7 @@ sweep_logdir=sweep_logs/$(date +%Y-%m-%d-%H-%M-%S)
 mkdir -p ${sweep_logdir}
 
 # Parameters
-iters=10
+iters=30
 nfails=1
 
 iteration_function() {
@@ -43,6 +43,8 @@ iteration_function() {
 for i in $(seq $iters)
 do
     iteration_function $i &
-    sleep 5
+    if [[ $i%5 -eq 0 ]]; then
+        wait
+    fi
 done
 wait
