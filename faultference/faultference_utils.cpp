@@ -906,11 +906,11 @@ GetBestLinkToRemoveITA(LogData *data, vector<Flow *> *dropped_flows,
 }
 
 pair<Link, double>
-GetRandomLinkToRemoveITA(LogData *data, vector<Flow *> *dropped_flows,
+GetRandomLinkToRemovePairs(LogData *data, vector<Flow *> *dropped_flows,
                          int ntraces, set<int> &equivalent_devices,
                          set<set<int>> &eq_device_sets, set<Link> &used_links,
                          double max_finish_time_ms, int nopenmp_threads) {
-    vector<pair<Link, double>> used_links_with_information;
+    vector<pair<Link, int>> used_links_with_pairs;
 
     for (Link link : used_links) {
         int link_id = data[0].links_to_ids[link];
@@ -924,30 +924,30 @@ GetRandomLinkToRemoveITA(LogData *data, vector<Flow *> *dropped_flows,
                                         dropped_flows[ii], link_id_ii);
             }
             set<set<int>> eq_device_sets_copy = eq_device_sets;
-            double information = GetEqDeviceSetsMeasureITA(
+            int pairs = GetEqDeviceSetsMeasurePairs(
                 data, dropped_flows, ntraces, equivalent_devices, link,
                 max_finish_time_ms, eq_device_sets_copy);
-            cout << "Removing link " << link << " information " << information
+            cout << "Removing link " << link << " pairs " << pairs
                  << endl;
-            if (information > 0) {
-                used_links_with_information.push_back(
-                    pair<Link, double>(link, information));
+            if (pairs > 0){
+                used_links_with_pairs.push_back(
+                    pair<Link, int>(link, pairs));
             }
         }
     }
-    if (used_links_with_information.size() == 0) {
-        return pair<Link, double>(Link(-1, -1), 0);
+    if (used_links_with_pairs.size() == 0) {
+        return pair<Link, int>(Link(-1, -1), 0);
     }
 
-    auto [best_link_to_remove, max_information] =
-        used_links_with_information[rand() %
-                                    used_links_with_information.size()];
+    auto [best_link_to_remove, pair_score] =
+        used_links_with_pairs[rand() %
+                                    used_links_with_pairs.size()];
 
     // Do again for the best link to populate eq_device_sets
-    GetEqDeviceSetsMeasureITA(data, dropped_flows, ntraces, equivalent_devices,
+    GetEqDeviceSetsMeasurePairs(data, dropped_flows, ntraces, equivalent_devices,
                               best_link_to_remove, max_finish_time_ms,
                               eq_device_sets);
-    return pair<Link, double>(best_link_to_remove, max_information);
+    return pair<Link, double>(best_link_to_remove, pair_score);
 }
 
 int GetExplanationEdgesAgg2(LogData *data, vector<Flow *> *dropped_flows,
