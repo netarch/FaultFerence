@@ -13,7 +13,7 @@ nfails=1
 iteration_function() {
     i=$1
 
-    for topo in "topo_ft_deg14_sw245_svr686_os3_i0" "topo_ft_deg16_sw320_svr1024_os3_i0" "topo_ft_deg18_sw405_svr1458_os3_i0" "topo_ft_deg20_sw500_svr2000_os3_i0"
+    for topo in "ft_deg10_sw125_svr250_os3_bidir_false" "ft_deg12_sw180_svr432_os3_bidir_false" "ft_deg14_sw245_svr686_os3_bidir_false" "ft_deg16_sw320_svr1024_os3_bidir_false" "ft_deg18_sw405_svr1458_os3_bidir_false" "ft_deg20_sw500_svr2000_os3_bidir_false"
     do
         topo_dir=${sweep_logdir}/${topo}/${i}
         mkdir -p ${topo_dir}
