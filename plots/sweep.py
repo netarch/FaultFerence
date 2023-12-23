@@ -71,6 +71,8 @@ plt.legend()
 plt.savefig("hello.png")
 
 pprint(json.loads(json.dumps(ALL_STEPS)), indent = 4)
+print("******")
 pprint(json.loads(json.dumps(LAST_DEVICES)), indent = 4)
+print("******")
 pprint(json.loads(json.dumps(AVG_STEPS)), indent = 4)
 

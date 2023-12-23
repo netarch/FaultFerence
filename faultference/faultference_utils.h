@@ -121,7 +121,7 @@ GetBestLinkToRemovePairs(LogData *data, vector<Flow *> *dropped_flows,
                          double max_finish_time_ms, int nopenmp_threads);
 
 pair<Link, double>
-GetRandomLinkToRemoveITA(LogData *data, vector<Flow *> *dropped_flows,
+GetRandomLinkToRemovePairs(LogData *data, vector<Flow *> *dropped_flows,
                          int ntraces, set<int> &equivalent_devices,
                          set<set<int>> &eq_device_sets, set<Link> &used_links,
                          double max_finish_time_ms, int nopenmp_threads);

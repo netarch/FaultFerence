@@ -426,8 +426,6 @@ set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
                    healthy_devices.begin(), healthy_devices.end(),
                    std::inserter(temp2, temp2.begin()));
     equivalent_devices = temp2;
-    cout << "Size of equivalent devices " << equivalent_devices.size() << endl;
-
     return equivalent_devices;
 }
 
@@ -555,7 +553,7 @@ GetBestMicroChange(LogData *data, vector<Flow *> *dropped_flows,
     Link best_link_to_remove;
     double score;
     if (sequence_mode == "Random") {
-        tie(best_link_to_remove, score) = GetRandomLinkToRemoveITA(
+        tie(best_link_to_remove, score) = GetRandomLinkToRemovePairs(
             data, dropped_flows, ntraces, eq_devices, eq_device_sets,
             used_links, max_finish_time_ms, nopenmp_threads);
     } else if (sequence_mode == "Intelligent") {
