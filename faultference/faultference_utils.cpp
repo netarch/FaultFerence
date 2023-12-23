@@ -12,6 +12,8 @@
 
 using namespace std;
 
+const int SCORE_THRESHOLD = 1.0e-3;
+
 void GetDroppedFlows(LogData &data, vector<Flow *> &dropped_flows) {
     for (Flow *flow : data.flows) {
         if (flow->GetLatestPacketsLost())
@@ -508,6 +510,9 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
             LocalizeViaNobody(data, ntraces, fail_file, min_start_time_ms,
                               max_finish_time_ms, nopenmp_threads, topo_name);
     }
+    else{
+        cout << "ERROR! ERROR! Somebody save me!" << endl;
+    }
 
     cout << "equivalent devices " << eq_devices << " size " << eq_devices.size()
          << endl;
@@ -528,13 +533,16 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
                                   eq_devices, eq_device_sets, used_links,
                                   max_finish_time_ms, sequence_mode, nopenmp_threads);
 
-        if (curr_score - last_score < 1.0e-3 or max_iter == 0 or
-            curr_score < 1.0e-8)
+        if (curr_score - last_score < SCORE_THRESHOLD or curr_score < 1.0e-8)
             break;
 
         cout << "Best MicroChange: " << mc << " score " << curr_score << endl;
         last_score = curr_score;
+        
         max_iter--;
+        if (max_iter == 0){
+            break;
+        }
     }
 }
 
@@ -555,6 +563,9 @@ GetBestMicroChange(LogData *data, vector<Flow *> *dropped_flows,
         tie(best_link_to_remove, score) = GetBestLinkToRemovePairs(
             data, dropped_flows, ntraces, eq_devices, eq_device_sets,
             used_links, max_finish_time_ms, nopenmp_threads);
+    }
+    else{
+        cout << "ERROR! ERROR! Somebody save me!" << endl;
     }
     RemoveLinkMc* mc = new RemoveLinkMc(best_link_to_remove);
     cout << mc << endl;
