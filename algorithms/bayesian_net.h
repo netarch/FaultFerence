@@ -17,7 +17,7 @@ class BayesianNet : public Estimator {
     const int NUM_CANDIDATES = max(15, 5 * MAX_FAILS);
     const int NUM_TOP_HYPOTHESIS_AT_EACH_STAGE = 500; //!TODO: 4
     // For printing purposes
-    const int N_MAX_K_LIKELIHOODS = 50; //!TODO: 20
+    const int N_MAX_K_LIKELIHOODS = 500; //!TODO: 20
     double PRIOR = -1000.0;
     const int GIBBS_SAMPLING_ITERATIONS = 1000000;
     bool REDUCED_ANALYSIS = false;
