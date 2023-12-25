@@ -390,12 +390,11 @@ class Topology(object):
         return fail_prob
 
     def PrintPaths(self, all_sw_pair_paths):
-        switches = [node for node in self.G.nodes() if node < HOST_OFFSET]
-        for src_sw in switches:
+        for src_sw in all_sw_pair_paths:
             if src_sw % 10 == 0:
                 print("Printing paths", src_sw)
             src_paths = all_sw_pair_paths[src_sw]
-            for dst_sw in switches:
+            for dst_sw in all_sw_pair_paths[src_sw]:
                 # print(src_rack, dst_rack, len(src_paths[dst_rack]), file=self.outfile)
                 for path in src_paths[dst_sw]:
                     if path != []:
@@ -502,7 +501,18 @@ class Topology(object):
             prob = fail_prob[(device, src, dst)]
             print("Failing_link", device, device, prob, file=self.outfile)
 
-        self.PrintPaths(all_rack_pair_paths)
+        src_dest_paths_only = {}
+        for failed_device, src_device, dst_device in self.failed_components:
+            src = self.host_rack_map[src_device]
+            dst = self.host_rack_map[dst_device]
+            if not src in src_dest_paths_only:
+                src_dest_paths_only[src] = {}
+            if not dst in src_dest_paths_only:
+                src_dest_paths_only[dst] = {}
+            src_dest_paths_only[src][dst] = all_rack_pair_paths[src][dst]
+            src_dest_paths_only[dst][src] = all_rack_pair_paths[dst][src]
+
+        self.PrintPaths(src_dest_paths_only)
         for flow in flows:
             src_rack = self.host_rack_map[flow.src]
             dst_rack = self.host_rack_map[flow.dst]
