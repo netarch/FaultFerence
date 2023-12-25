@@ -6,7 +6,7 @@ sweep_logdir=sweep_logs/$(date +%Y-%m-%d-%H-%M-%S)
 mkdir -p ${sweep_logdir}
 
 # Parameters
-iters=10
+iters=12
 nfails=1
 
 iteration_function() {
