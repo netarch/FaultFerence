@@ -10,8 +10,16 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 
 log_path = sys.argv[1]
-ITERATIONS = 20
+ITERATIONS = 60
 TOPOLOGY_PREFIX = "ft"
+DEGREE_SWITCH_MAPPING = {
+    10: 125,
+    12: 180,
+    14: 245,
+    16: 320,
+    18: 405,
+    20: 500
+}
 
 ALL_STEPS = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 AVG_STEPS = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
@@ -25,7 +33,7 @@ for topology in os.listdir(log_path):
         continue
     topo_degree = int(topology.lstrip(TOPOLOGY_PREFIX + "_deg")[:2])
     topology_path = os.path.join(log_path, topology)
-    if topo_degree > 20:
+    if topo_degree > 16:
         continue
     for iter_index in range(1, ITERATIONS + 1):
         iter_string = str(iter_index)
@@ -62,7 +70,7 @@ for sequence_scheme in ALL_STEPS:
             all_steps = ALL_STEPS[sequence_scheme][inference_scheme][topo_degree]
             AVG_STEPS[sequence_scheme][inference_scheme][topo_degree] = np.mean(all_steps)
             AVG_LAST_DEVICES[sequence_scheme][inference_scheme][topo_degree] = np.mean(LAST_DEVICES[sequence_scheme][inference_scheme][topo_degree])
-            CONFIDENCE_INTERVAL[sequence_scheme][inference_scheme][topo_degree] = st.norm.interval(alpha=0.75, loc=np.mean(all_steps), scale=st.sem(all_steps))
+            CONFIDENCE_INTERVAL[sequence_scheme][inference_scheme][topo_degree] = st.norm.interval(confidence=0.90, loc=np.mean(all_steps), scale=st.sem(all_steps))
 
 
 fm.fontManager.addfont("./gillsans.ttf")
@@ -83,28 +91,40 @@ for sequence_scheme in AVG_STEPS:
         dicty = OrderedDict(sorted(dicty.items()))
         confidence_dicty = CONFIDENCE_INTERVAL[sequence_scheme][inference_scheme]
         confidence_dicty = OrderedDict(sorted(confidence_dicty.items()))
-        print(confidence_dicty)
-        ax.plot(dicty.keys(), dicty.values(), color=colors[i], marker=markers[i], linestyle=linestyles[i], label = "-".join([sequence_scheme[:1], inference_scheme[:1]]))
-        ax.fill_between(confidence_dicty.keys(), [x[0] for x in confidence_dicty.values()], [x[1] for x in confidence_dicty.values()], color=colors[i], alpha=0.5)
+
+        ax.plot([DEGREE_SWITCH_MAPPING[x] for x in dicty.keys()], dicty.values(), color=colors[i], marker=markers[i], linestyle=linestyles[i], label = "-".join([sequence_scheme[:1], inference_scheme[:1]]))
+        ax.fill_between([DEGREE_SWITCH_MAPPING[x] for x in confidence_dicty.keys()], [x[0] for x in confidence_dicty.values()], [x[1] for x in confidence_dicty.values()], color=colors[i], alpha=0.5)
         i +=1
 
-ax.set_xlabel('Degree')
-ax.set_ylabel('# steps')
+# ax.set_xlabel('Degree')
+ax.set_xlabel("# switches")
+ax.set_ylabel('# micro-changes')
 
-# ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1])
-ax.set_xticks([10, 12, 14, 16, 18, 20])
+# ax.set_xticks([10, 12, 14, 16, 18, 20])
+ax.set_xticks([125, 250, 375, 500])
 
 # ax.set_ylim([0])
 plt.ylim(ymin=0)
-# ax.set_xlim([0, 600])
+ax.set_xlim([100, 500])
 ax.grid()
 
 plt.tight_layout()
 plt.legend(fontsize="20")
 plt.savefig("steps.png")
 
-# print("ALL STEPS")
-# pprint(json.loads(json.dumps(ALL_STEPS)))
+print("ALL STEPS")
+ALL_STEPS_PRINTY = []
+for sequence_scheme in ALL_STEPS:
+    for inference_scheme in ALL_STEPS[sequence_scheme]:
+        for topo_degree in ALL_STEPS[sequence_scheme][inference_scheme]:
+            all_steps = ALL_STEPS[sequence_scheme][inference_scheme][topo_degree]
+            stringy = str(topo_degree) + " " + sequence_scheme + " " + inference_scheme + " " + str(all_steps)
+            ALL_STEPS_PRINTY.append(stringy)
+
+ALL_STEPS_PRINTY.sort()
+for line in ALL_STEPS_PRINTY:
+    print(line)
+
 # print("******\n NUM DEVICES IN LAST STEP")
 # pprint(json.loads(json.dumps(LAST_DEVICES)))
 # print("******\n AVG STEPS:")
