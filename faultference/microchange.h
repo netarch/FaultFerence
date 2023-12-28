@@ -46,8 +46,8 @@ class ActiveProbeMc : public MicroChange {
     }
 };
 
-inline ostream& operator<<(ostream &os, MicroChange* mc) {
-    return mc->Print(os);
+inline ostream& operator<<(ostream &os, MicroChange& mc) {
+    return mc.Print(os);
 }
 
 #endif

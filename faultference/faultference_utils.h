@@ -7,6 +7,8 @@
 #include <chrono>
 #include <iostream>
 
+extern bool USE_ACTIVE_PROBE_MC;
+
 inline bool SortByValueSize(const pair<int, set<Flow *>> &a,
                             const pair<int, set<Flow *>> &b) {
     return (a.second.size() > b.second.size());
@@ -56,7 +58,7 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
                      int nopenmp_threads, string sequence_mode,
                      string inference_mode);
 
-pair<MicroChange *, double>
+pair<MicroChange*, double>
 GetBestMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                    set<int> &equivalent_devices, set<set<int>> &eq_device_sets,
                    set<Link> &used_links, double min_start_time_ms,
@@ -100,7 +102,7 @@ set<PII> ViableSrcDstForActiveProbe(LogData *data, int ntraces,
                                     double min_start_time_ms,
                                     double max_finish_time_ms);
 
-pair<ActiveProbeMc, double>
+pair<ActiveProbeMc*, double>
 GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                      set<int> &equivalent_devices,
                      set<set<int>> &eq_device_sets, set<Link> &used_links,

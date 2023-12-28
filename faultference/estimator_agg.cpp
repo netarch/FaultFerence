@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
     BayesianNet estimator;
     PATH_KNOWN = false;
     TRACEROUTE_BAD_FLOWS = false;
-    INPUT_FLOW_TYPE = APPLICATION_FLOWS;
+    INPUT_FLOW_TYPE = ALL_FLOWS;
     VERBOSE = true;
     ACTIVE_PROBES_PATH_KNOWN = false;
     // GetExplanationEdges(in_topo_traces, max_finish_time_ms, nopenmp_threads);

@@ -18,6 +18,7 @@ parser.add_argument("--flows_file", type=str, required=True)
 parser.add_argument("--outfile", type=str, required=True)
 parser.add_argument("--fail_file", type=str)
 parser.add_argument("--fails_from_file", action="store_true", default=False)
+parser.add_argument("--active_probes_file", type=str, required=False, default=None)
 parser.add_argument("--failed_flows_only", action="store_true", default=False)
 parser.add_argument(
     "--duplicate_link", nargs=2, metavar=("l1", "l2"), type=int, default=(-1, -1)

@@ -4,6 +4,7 @@ from multiprocessing import Process, Queue
 import copy
 import time
 import random
+import itertools
 import math
 import numpy as np
 import networkx as nx
@@ -184,6 +185,18 @@ class Topology(object):
             flowsize = self.GetParetoFlowSize()
             flows.append(Flow(src, dst, flowsize, srcport, dstport))
         return flows
+
+    def ReadActiveProbesFromFile(self, active_probes_file):
+        active_probes = []
+        srcport = random.randint(1000, 2000)
+        dstport = random.randint(1000, 2000)
+        with open(active_probes_file, "r") as apfile:
+            for line in apfile:
+                src, dst, nprobes = [int(x) for x in line.split()[:3]]
+                #!NOTE: all of them go onto the same path
+                for __ in range(nprobes):
+                    active_probes.append(Flow(src, dst, 1, srcport, dstport))
+        return active_probes
 
     def ReadFlowsFromFile(G, flows_file):
         flows = []
@@ -487,7 +500,11 @@ class Topology(object):
 
         nflows_per_failed_pair = 2000
         flows = self.GetFlowsBlackHole(nflows_per_failed_pair)
+        active_probes = []
+        if args.active_probes_file is not None:
+            active_probes = self.ReadActiveProbesFromFile(args.active_probes_file)
         print("Nflows", len(flows), "nservers", self.nservers, fail_prob)
+        print("Active probes", len(active_probes))
         # print("Fail prob", fail_prob)
 
         def GetFailProb(device, flow):
@@ -503,9 +520,14 @@ class Topology(object):
             print("Failing_link", device, device, prob, file=self.outfile)
 
         self.PrintPaths(all_rack_pair_paths)
-        for flow in flows:
-            src_rack = self.host_rack_map[flow.src]
-            dst_rack = self.host_rack_map[flow.dst]
+
+        for flow in itertools.chain(flows, active_probes):
+            src_rack = flow.src
+            dst_rack = flow.dst
+            if flow.src >= HOST_OFFSET:
+                src_rack = self.host_rack_map[flow.src]
+            if flow.dst >= HOST_OFFSET:
+                dst_rack = self.host_rack_map[flow.dst]
             # print(src, dst, flowsize)
             # if (flow.src, flow.dst) in self.failed_src_dst_pairs:
             #    print("Failed pair", flow.src, flow.dst)
@@ -514,9 +536,8 @@ class Topology(object):
             # first_link = (flow.src, src_rack)
             # last_link = (dst_rack, flow.dst)
             flow_dropped = False
-            # if (random.random() < GetFailProb(first_link, flow) or random.random() <= GetFailProb(last_link, flow)):
             #    flow_dropped = True
-            for k in range(0, len(path_taken) - 1):
+            for k in range(0, len(path_taken)):
                 # r = np.random.random()
                 r = int(random.getrandbits(32)) / float(1 << 32)
                 flow_dropped = flow_dropped or (r <= GetFailProb(path_taken[k], flow))

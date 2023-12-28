@@ -12,6 +12,8 @@
 
 using namespace std;
 
+bool USE_ACTIVE_PROBE_MC = true;
+
 void GetDroppedFlows(LogData &data, vector<Flow *> &dropped_flows) {
     for (Flow *flow : data.flows) {
         if (flow->GetLatestPacketsLost())
@@ -54,9 +56,11 @@ void BinFlowsByDevice(LogData &data, double max_finish_time_ms,
                     flows_by_device[device].insert(flow);
             }
         }
+        /*
         cout << "Dropped flow: " << flow->src << "("
              << data.hosts_to_racks[flow->src] << ")->" << flow->dest << "("
              << data.hosts_to_racks[flow->dest] << ") " << endl;
+        */
     }
 }
 
@@ -454,7 +458,8 @@ set<PII> ViableSrcDstForActiveProbe(LogData *data, int ntraces,
                 for (int ii = 0; ii < dpath.size(); ii++) {
                     for (int jj = ii + 1; jj < dpath.size(); jj++) {
                         if (data[ii].IsNodeSwitch(dpath[ii]) and
-                            data[ii].IsNodeSwitch(dpath[jj])) {
+                            data[ii].IsNodeSwitch(dpath[jj]) and
+                            dpath[ii] != dpath[jj]) {
                             src_dst_pairs.insert(PII(dpath[ii], dpath[jj]));
                         }
                     }
@@ -552,32 +557,42 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
             curr_score < 1.0e-8)
             break;
 
-        cout << "Best MicroChange: " << mc << " score " << curr_score << endl;
+        cout << "comes here" << endl;
+        cout << "Best MicroChange: " << *mc << " score " << curr_score << endl;
+        cout << "and also here" << endl;
         last_score = curr_score;
         max_iter--;
     }
 }
 
-pair<MicroChange *, double>
+pair<MicroChange*, double>
 GetBestMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                    set<int> &eq_devices, set<set<int>> &eq_device_sets,
                    set<Link> &used_links, double min_start_time_ms,
                    double max_finish_time_ms, string sequence_mode,
                    int nopenmp_threads) {
-    Link best_link_to_remove;
-    double score;
-    if (sequence_mode == "Random") {
-        tie(best_link_to_remove, score) = GetRandomLinkToRemove(
+    if (USE_ACTIVE_PROBE_MC) {
+        assert (sequence_mode == "Intelligent");
+        pair<ActiveProbeMc*, double> res = GetBestActiveProbeMc(
             data, dropped_flows, ntraces, eq_devices, eq_device_sets,
             used_links, min_start_time_ms, max_finish_time_ms, nopenmp_threads);
-    } else if (sequence_mode == "Intelligent") {
-        tie(best_link_to_remove, score) = GetBestLinkToRemove(
-            data, dropped_flows, ntraces, eq_devices, eq_device_sets,
-            used_links, min_start_time_ms, max_finish_time_ms, nopenmp_threads);
+        return res;
     }
-    RemoveLinkMc *mc = new RemoveLinkMc(best_link_to_remove);
-    cout << mc << endl;
-    return pair<MicroChange *, double>(mc, score);
+    else{
+        Link best_link_to_remove;
+        double score;
+        if (sequence_mode == "Random") {
+            tie(best_link_to_remove, score) = GetRandomLinkToRemove(
+                data, dropped_flows, ntraces, eq_devices, eq_device_sets,
+                used_links, min_start_time_ms, max_finish_time_ms, nopenmp_threads);
+        } else if (sequence_mode == "Intelligent") {
+            tie(best_link_to_remove, score) = GetBestLinkToRemove(
+                data, dropped_flows, ntraces, eq_devices, eq_device_sets,
+                used_links, min_start_time_ms, max_finish_time_ms, nopenmp_threads);
+        }
+        RemoveLinkMc *mc = new RemoveLinkMc(best_link_to_remove);
+        return pair<MicroChange*, double>(mc, score);
+    }
 }
 
 Link GetMostUsedLink(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
@@ -721,6 +736,9 @@ int GetEqDeviceSetsMeasure(LogData *data, vector<Flow *> *dropped_flows,
     for (auto [c, cnt] : col_cnts) {
         pairs += cnt * (equivalent_devices.size() - cnt);
     }
+    //! TODO: check if this assert holds, it should!
+    assert(pairs % 2 == 0);
+    pairs /= 2;
     return pairs;
 }
 
@@ -729,11 +747,30 @@ int EvaluateActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows,
                           PII src_dst, double min_start_time_ms,
                           double max_finish_time_ms,
                           set<set<int>> &eq_device_sets) {
-    //! TODO: implement
-    return 0;
+    vector<Path *> *ap_paths;
+    // paths in the original network
+    data[0].GetAllPaths(&ap_paths, src_dst.first, src_dst.second);
+    set<int> devices_in_path;
+    for (Path *path : *ap_paths) {
+        for (int link_id : *path) {
+            Link link = data[0].inverse_links[link_id];
+            devices_in_path.insert(link.first);
+            devices_in_path.insert(link.second);
+        }
+    }
+    set<int> devices_filtered;
+    set_intersection(equivalent_devices.begin(), equivalent_devices.end(),
+                     devices_in_path.begin(),
+                     devices_in_path.end(),
+                     std::inserter(devices_filtered, devices_filtered.begin()));
+
+    int pairs = devices_filtered.size() *
+                (equivalent_devices.size() - devices_filtered.size());
+    eq_device_sets.insert(devices_filtered);
+    return pairs;
 }
 
-pair<ActiveProbeMc, double>
+pair<ActiveProbeMc*, double>
 GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                      set<int> &equivalent_devices,
                      set<set<int>> &eq_device_sets, set<Link> &used_links,
@@ -762,8 +799,8 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                           best_src_dst, min_start_time_ms, max_finish_time_ms,
                           eq_device_sets);
     int nprobes = 10;
-    ActiveProbeMc amc(best_src_dst.first, best_src_dst.second, nprobes);
-    return pair<ActiveProbeMc, double>(amc, (double)max_pairs);
+    ActiveProbeMc* amc = new ActiveProbeMc(best_src_dst.first, best_src_dst.second, nprobes);
+    return pair<ActiveProbeMc*, double>(amc, (double)max_pairs);
 }
 
 pair<Link, double>
