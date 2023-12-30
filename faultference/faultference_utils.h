@@ -58,7 +58,7 @@ set<int> LocalizeViaFlock(LogData *data, int ntraces, string fail_file,
                           double min_start_time_ms, double max_finish_time_ms,
                           int nopenmp_threads, string topo_name);
 
-int IsProblemSolved(LogData *data, double max_finish_time_ms);
+int IsProblemSolved(LogData *data, double max_finish_time_ms, const int min_path_per_link);
 
 set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
                            double min_start_time_ms, double max_finish_time_ms,
