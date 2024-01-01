@@ -39,7 +39,7 @@ fail_file=${outfile_sim}.fails
 # echo "Flow simulation done"
 
 > ${logdir}/input
-inputs=`echo "${fail_file} ${topofile} ${outfile_sim}"`
+inputs=`echo "${sequence_mode} ${inference_mode} ${topo_name} ${fail_file} ${topofile} ${outfile_sim}"`
 
 iter=1
 num_steps=0
@@ -50,7 +50,7 @@ eq_size=0
 while [ ${iter} -le ${maxiter} ]
 do
     echo ${inputs} >> ${logdir}/input
-    ./estimator_agg 0.0 1000000.01 ${nthreads} ${sequence_mode} ${inference_mode} ${topo_name} ${inputs} > ${localization_logs}/iter_${iter}
+    ./estimator_agg 0.0 1000000.01 ${nthreads} ${inputs} > ${localization_logs}/iter_${iter}
     cat ${localization_logs}/iter_${iter} | grep "Best MicroChange" | grep "REMOVE_LINK" | sed 's/[^[0-9\.]\[*/ /g' | sed 's/[ ][ ]*/ /g' | awk '{print $1" "$2}' | head -n${max_links} > ${micro_change_dir}/iter_${iter}
     new_eq_devices=`cat ${localization_logs}/iter_${iter} | grep "equivalent devices" | grep "equivalent devices" | sed 's/equivalent devices //' | sed 's/size.*//'`
     new_eq_size=`echo ${new_eq_devices} | sed 's/]//'g | sed 's/\[//'g | awk -F',' '{print NF}'`
