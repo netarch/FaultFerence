@@ -355,6 +355,7 @@ set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
     
     map<Flow *, map<int, int>> path_per_link_per_flow;
     map<Flow *, int> min_path_per_link_per_flow;
+    int min_path_per_link = 1000;
     for (Flow *flow : data[0].flows) {
         vector<Path *> *flow_paths = flow->GetPaths(max_finish_time_ms);
         for (Path *path : *flow_paths) {
@@ -367,10 +368,12 @@ set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
                 path_per_link_per_flow[flow][link_id] += 1;
             }
         }
-        auto [_, min_value] = (*min_element(path_per_link_per_flow[flow].begin(), path_per_link_per_flow[flow].end()));
-        min_path_per_link_per_flow[flow] = min_value;
+        for(auto it = path_per_link_per_flow[flow].begin(); it != path_per_link_per_flow[flow].end(); ++it) {
+            if (it->second <= min_path_per_link){
+                min_path_per_link = it->second;
+            }
+        }
     }
-    auto [_, min_path_per_link] = (*min_element(min_path_per_link_per_flow.begin(), min_path_per_link_per_flow.end()));;
 
     for (int ii = 1; ii < ntraces; ii++) {
         set<int> new_localized_devices;
@@ -440,8 +443,8 @@ int IsProblemSolved(LogData *data, double max_finish_time_ms, const int min_path
     cout << "Old equation: " << float(failed_flows)/total_flows << " <= " << failure_threshold / shortest_paths << endl;
     cout << "New equation: " << float(failed_flows) << " <= " << mean - 3*std_dev << endl;
 
-    if (float(failed_flows) / total_flows <= failure_threshold / shortest_paths) {
-    // if (failed_flows <= mean - 3*std_dev) {
+    // if (float(failed_flows) / total_flows <= failure_threshold / shortest_paths) {
+    if (failed_flows <= mean - 3*std_dev) {
         return 1;
     }
     return 0;
