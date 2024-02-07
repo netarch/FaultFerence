@@ -4,9 +4,9 @@
 #include "defs.h"
 #include <iostream>
 #include <list>
+#include <set>
 #include <unordered_map>
 #include <vector>
-#include <set>
 using namespace std;
 
 enum MicroChangeType { REMOVE_LINK, ACTIVE_PROBE };
@@ -17,7 +17,7 @@ class MicroChange {
     MicroChangeType mc_type;
 
     MicroChange();
-    virtual ostream& Print(ostream &os) { assert (false); };
+    virtual ostream &Print(ostream &os) { assert(false); };
 };
 
 class RemoveLinkMc : public MicroChange {
@@ -26,7 +26,8 @@ class RemoveLinkMc : public MicroChange {
   public:
     RemoveLinkMc(Link _remove_link);
     ostream &Print(ostream &os) {
-        os << "[MicroChange type " << "REMOVE_LINK ";
+        os << "[MicroChange type "
+           << "REMOVE_LINK ";
         os << remove_link;
         os << "]";
         return os;
@@ -34,19 +35,27 @@ class RemoveLinkMc : public MicroChange {
 };
 
 class ActiveProbeMc : public MicroChange {
-    int src, dst, nprobes;
+    int src, dst, srcport, dstport, nprobes;
+    // active probes can optionally be sent with a different src, dst in the
+    // 5-tuple header than the actual src from where they are sent, or from the
+    // actual dst where they are intercepted
+    int header_src, header_dst;
 
   public:
-    ActiveProbeMc(int _src, int _dst, int _nprobes);
-    ostream& Print(ostream &os) {
-        os << "[MicroChange type " << "ACTIVE_PROBE ";
-        os << src << " " << dst << " " << nprobes;
+    ActiveProbeMc(int _src, int _dst, int _srcport, int _dstport, int _nprobes,
+                  int _header_src, int _header_dst);
+    ostream &Print(ostream &os) {
+        os << "[MicroChange type "
+           << "ACTIVE_PROBE ";
+        os << src << " " << dst << " ";
+        os << srcport << " " << dstport << " ";
+        os << nprobes << " " << header_src << " " << header_dst;
         os << "]";
         return os;
     }
 };
 
-inline ostream& operator<<(ostream &os, MicroChange& mc) {
+inline ostream &operator<<(ostream &os, MicroChange &mc) {
     return mc.Print(os);
 }
 

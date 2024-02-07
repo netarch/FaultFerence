@@ -13,6 +13,7 @@
 using namespace std;
 
 bool USE_ACTIVE_PROBE_MC = true;
+const int SCORE_THRESHOLD = 1.0e-3;
 
 void GetDroppedFlows(LogData &data, vector<Flow *> &dropped_flows) {
     for (Flow *flow : data.flows) {
@@ -281,13 +282,25 @@ void OperatorScheme(vector<pair<string, string>> in_topo_traces,
 
 set<int> LocalizeViaFlock(LogData *data, int ntraces, string fail_file,
                           double min_start_time_ms, double max_finish_time_ms,
-                          int nopenmp_threads) {
+                          int nopenmp_threads, string topo_name) {
     BayesianNet estimator;
-    // vector<double> params = {1.0 - 0.49, 5.0e-3, -10.0}; // ft_k10
-    // vector<double> params = {1.0 - 0.41, 1.0e-3, -10.0}; // ft_k12
-    vector<double> params = {1.0 - 0.49, 0.75e-3, -10.0}; // ft_k14'
 
-    estimator.SetParams(params);
+    map<string, vector<double>> params;
+    params["ft_deg10"] = {1.0 - 0.49, 5.0e-3, -10.0};
+    params["ft_deg12"] = {1.0 - 0.49, 6.0e-4, -20.0};
+    params["ft_deg14"] = {1.0 - 0.41, 1.5e-4, -20.0};
+    params["ft_deg16"] = {1.0 - 0.49, 1.0e-6, -10.0};
+    params["ft_deg18"] = {1.0 - 0.41, 1.0e-6, -10.0};
+    params["ft_deg20"] = {1.0 - 0.41, 1.0e-6, -20.0};
+
+    params["rg_deg10"] = {1.0 - 0.73, 1.0e-6, -10.0};
+    params["rg_deg12"] = {1.0 - 0.73, 1.0e-6, -10.0};
+    params["rg_deg14"] = {1.0 - 0.73, 1.0e-6, -10.0};
+    params["rg_deg16"] = {1.0 - 0.73, 1.0e-6, -10.0};
+    params["rg_deg18"] = {1.0 - 0.73, 3.0e-4, -10.0};
+    params["rg_deg20"] = {1.0 - 0.73, 1.0e-6, -10.0};
+
+    estimator.SetParams(params[topo_name]);
     PATH_KNOWN = false;
     TRACEROUTE_BAD_FLOWS = false;
     INPUT_FLOW_TYPE = APPLICATION_FLOWS;
@@ -339,7 +352,7 @@ set<vector<Link>> GetSetOfActualPath(LogData data, double max_finish_time_ms) {
 
 set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
                            double min_start_time_ms, double max_finish_time_ms,
-                           int nopenmp_threads) {
+                           int nopenmp_threads, string topo_name) {
 
     set<vector<Link>> localized_paths;
     for (Flow *flow : data[0].flows) {
@@ -416,8 +429,6 @@ set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
                    healthy_devices.begin(), healthy_devices.end(),
                    std::inserter(temp2, temp2.begin()));
     equivalent_devices = temp2;
-    cout << "Size of equivalent devices " << equivalent_devices.size() << endl;
-
     return equivalent_devices;
 }
 
@@ -499,7 +510,7 @@ set<Link> GetUsedLinks(LogData *data, int ntraces, double min_start_time_ms,
 void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
                      double min_start_time_ms, double max_finish_time_ms,
                      int nopenmp_threads, string sequence_mode,
-                     string inference_mode) {
+                     string inference_mode, string topo_name) {
     int ntraces = in_topo_traces.size();
     vector<Flow *> dropped_flows[ntraces];
     LogData data[ntraces];
@@ -519,18 +530,16 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
                         flows_by_device_agg, max_finish_time_ms);
 
     set<int> eq_devices;
-    /* Use a fault localization algorithm to obtain equivalent set of localized
-     * devices
-     */
-    // equivalent_devices = GetEquivalentDevices(flows_by_device_agg);
     if (inference_mode == "Flock") {
         eq_devices =
             LocalizeViaFlock(data, ntraces, fail_file, min_start_time_ms,
-                             max_finish_time_ms, nopenmp_threads);
+                             max_finish_time_ms, nopenmp_threads, topo_name);
     } else if (inference_mode == "Naive") {
         eq_devices =
             LocalizeViaNobody(data, ntraces, fail_file, min_start_time_ms,
-                              max_finish_time_ms, nopenmp_threads);
+                              max_finish_time_ms, nopenmp_threads, topo_name);
+    } else {
+        cout << "ERROR! ERROR! Somebody save me!" << endl;
     }
 
     cout << "equivalent devices " << eq_devices << " size " << eq_devices.size()
@@ -553,45 +562,51 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
             used_links, min_start_time_ms, max_finish_time_ms, sequence_mode,
             nopenmp_threads);
 
-        if (curr_score - last_score < 1.0e-3 or max_iter == 0 or
-            curr_score < 1.0e-8)
+        if (curr_score - last_score < SCORE_THRESHOLD or curr_score < 1.0e-8)
             break;
 
         cout << "comes here" << endl;
         cout << "Best MicroChange: " << *mc << " score " << curr_score << endl;
         cout << "and also here" << endl;
         last_score = curr_score;
+
         max_iter--;
+        if (max_iter == 0) {
+            break;
+        }
     }
 }
 
-pair<MicroChange*, double>
+pair<MicroChange *, double>
 GetBestMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                    set<int> &eq_devices, set<set<int>> &eq_device_sets,
                    set<Link> &used_links, double min_start_time_ms,
                    double max_finish_time_ms, string sequence_mode,
                    int nopenmp_threads) {
     if (USE_ACTIVE_PROBE_MC) {
-        assert (sequence_mode == "Intelligent");
-        pair<ActiveProbeMc*, double> res = GetBestActiveProbeMc(
+        assert(sequence_mode == "Intelligent");
+        pair<ActiveProbeMc *, double> res = GetBestActiveProbeMc(
             data, dropped_flows, ntraces, eq_devices, eq_device_sets,
             used_links, min_start_time_ms, max_finish_time_ms, nopenmp_threads);
         return res;
-    }
-    else{
+    } else {
         Link best_link_to_remove;
         double score;
         if (sequence_mode == "Random") {
             tie(best_link_to_remove, score) = GetRandomLinkToRemove(
                 data, dropped_flows, ntraces, eq_devices, eq_device_sets,
-                used_links, min_start_time_ms, max_finish_time_ms, nopenmp_threads);
+                used_links, min_start_time_ms, max_finish_time_ms,
+                nopenmp_threads);
         } else if (sequence_mode == "Intelligent") {
             tie(best_link_to_remove, score) = GetBestLinkToRemove(
                 data, dropped_flows, ntraces, eq_devices, eq_device_sets,
-                used_links, min_start_time_ms, max_finish_time_ms, nopenmp_threads);
+                used_links, min_start_time_ms, max_finish_time_ms,
+                nopenmp_threads);
+        } else {
+            cout << "ERROR! ERROR! Somebody save me!" << endl;
         }
         RemoveLinkMc *mc = new RemoveLinkMc(best_link_to_remove);
-        return pair<MicroChange*, double>(mc, score);
+        return pair<MicroChange *, double>(mc, score);
     }
 }
 
@@ -760,8 +775,7 @@ int EvaluateActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows,
     }
     set<int> devices_filtered;
     set_intersection(equivalent_devices.begin(), equivalent_devices.end(),
-                     devices_in_path.begin(),
-                     devices_in_path.end(),
+                     devices_in_path.begin(), devices_in_path.end(),
                      std::inserter(devices_filtered, devices_filtered.begin()));
 
     int pairs = devices_filtered.size() *
@@ -770,7 +784,31 @@ int EvaluateActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows,
     return pairs;
 }
 
-pair<ActiveProbeMc*, double>
+typedef tuple<int, int, int, int> TupIIII;
+TupIIII SrcDstWithMaxDrops(LogData *data, vector<Flow *> *dropped_flows,
+                                  int ntraces, double min_start_time_ms,
+                                  double max_finish_time_ms,
+                                  int nopenmp_threads) {
+    map<TupIIII, int> tup_cnts;
+    TupIIII ret_tup;
+    int max_cnt = 0;
+    for (int ii = 0; ii < ntraces; ii++) {
+        for (Flow *flow : dropped_flows[ii]) {
+            if (!flow->IsFlowActive()) {
+                TupIIII tup(flow->src, flow->dest, flow->srcport, flow->destport);
+                if (tup_cnts.find(tup) == tup_cnts.end())
+                    tup_cnts[tup] = 0;
+                if (++tup_cnts[tup] > max_cnt) {
+                    max_cnt = tup_cnts[tup];
+                    ret_tup = tup;
+                }
+            }
+        }
+    }
+    return ret_tup;
+}
+
+pair<ActiveProbeMc *, double>
 GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                      set<int> &equivalent_devices,
                      set<set<int>> &eq_device_sets, set<Link> &used_links,
@@ -799,8 +837,13 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                           best_src_dst, min_start_time_ms, max_finish_time_ms,
                           eq_device_sets);
     int nprobes = 10;
-    ActiveProbeMc* amc = new ActiveProbeMc(best_src_dst.first, best_src_dst.second, nprobes);
-    return pair<ActiveProbeMc*, double>(amc, (double)max_pairs);
+    auto [hsrc, hdst, srcport, dstport] =
+        SrcDstWithMaxDrops(data, dropped_flows, ntraces, min_start_time_ms,
+                           max_finish_time_ms, nopenmp_threads);
+    ActiveProbeMc *amc =
+        new ActiveProbeMc(best_src_dst.first, best_src_dst.second, srcport, dstport, nprobes,
+                          hsrc, hdst);
+    return pair<ActiveProbeMc *, double>(amc, (double)max_pairs);
 }
 
 pair<Link, double>
@@ -846,7 +889,6 @@ GetRandomLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                       double min_start_time_ms, double max_finish_time_ms,
                       int nopenmp_threads) {
     vector<pair<Link, int>> used_links_with_pairs;
-
     for (Link link : used_links) {
         int link_id = data[0].links_to_ids[link];
         Link rlink = Link(link.second, link.first);
@@ -880,6 +922,20 @@ GetRandomLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                            random_link_to_remove, max_finish_time_ms,
                            eq_device_sets);
     return pair<Link, double>(random_link_to_remove, (double)pairs);
+}
+
+int GetExplanationEdgesAgg2(LogData *data, vector<Flow *> *dropped_flows,
+                            int ntraces, set<int> &equivalent_devices,
+                            set<Link> &removed_links,
+                            double max_finish_time_ms) {
+    map<int, set<Flow *>> flows_by_device;
+    BinFlowsByDeviceAgg(data, dropped_flows, ntraces, removed_links,
+                        flows_by_device, max_finish_time_ms);
+    set<int> new_eq_devices = GetEquivalentDevices(flows_by_device);
+    int ret =
+        new_eq_devices.size(); // * 10000000 + 100 - (maxedges - nextedges);
+    cout << "Total explanation edges " << ret << endl;
+    return ret;
 }
 
 map<PII, pair<int, double>> ReadFailuresBlackHole(string fail_file) {

@@ -32,23 +32,13 @@ vector<vector<double>> GetFlockParams() {
     vector<vector<double>> params;
     double eps = 1.0e-10;
     for (double p1c = 1.0e-2; p1c <= 75.0e-2 + eps; p1c += 8.0e-2) {
-        for (double p2 = 0.01e-3; p2 <= 1.5e-3 + eps; p2 += 0.25e-3) {
+        for (double p2 = 1.0e-6; p2 <= 1500.0e-6 + eps; p2 += 150.0e-6) {
             if (p2 >= p1c - 0.5e-3)
                 continue;
             for (double nprior : {10, 20})
                 params.push_back(vector<double>{1.0 - p1c, p2, -nprior});
         }
     }
-    /*
-    for (double p1c = 1.0e-2; p1c <= 3.0e-2 + eps; p1c += 4.0e-2) {
-        for (double p2 = 1.0e-3; p2 <= 3.0e-3 + eps; p2 += 4.0e-3) {
-            if (p2 >= p1c - 0.5e-3)
-                continue;
-            for (double nprior : {2})
-                params.push_back(vector<double>{1.0 - p1c, p2, -nprior});
-        }
-    }
-    */
     return params;
 }
 
@@ -78,7 +68,7 @@ void CalibrateFlock(vector<pair<string, string>> topo_traces,
     PDD best_acc(0.0, 0.0);
     while (best_param.size() == 0 and recall_threshold >= 0.0){
         for (int i = 0; i < params.size(); i++) {
-            if (results[i][1] >= recall_threshold and results[i][0] > best_acc[0]){
+            if (results[i].second >= recall_threshold and results[i].first > best_acc.first){
                 best_param = params[i];
                 best_acc = results[i];
             }
@@ -87,40 +77,6 @@ void CalibrateFlock(vector<pair<string, string>> topo_traces,
     }
     cout << "Chosen calibrated point " << best_param << " with accuracy "
          << best_acc << endl;
-}
-
-void CalibrateFlock1(vector<pair<string, string>> topo_traces,
-                     double min_start_time_ms, double max_finish_time_ms,
-                     int nopenmp_threads) {
-    vector<vector<double>> params = GetFlockParams();
-    cout << "Num params" << params.size() << endl;
-
-    vector<vector<PDD>> results;
-
-    for (auto [topo_f, trace_f] : topo_traces) {
-        cout << "calling GetDataFromLogFileParallel on " << topo_f << ", "
-             << trace_f << endl;
-
-        BayesianNet estimator;
-        PATH_KNOWN = false;
-        TRACEROUTE_BAD_FLOWS = false;
-        INPUT_FLOW_TYPE = APPLICATION_FLOWS;
-        VERBOSE = false;
-
-        vector<PDD> result;
-        GetPrecisionRecallParamsFile(topo_f, trace_f, min_start_time_ms,
-                                     max_finish_time_ms, params, &estimator,
-                                     result, nopenmp_threads);
-        results.push_back(result);
-        cout << "Done" << endl;
-    }
-    for (int i = 0; i < params.size(); i++) {
-        int npresent = 0;
-        for (int k = 0; k < topo_traces.size(); k++)
-            npresent += (results[k][i].second > 0.999);
-        cout << "Calibrate " << params[i] << " " << npresent << " "
-             << topo_traces.size() << endl;
-    }
 }
 
 int main(int argc, char *argv[]) {

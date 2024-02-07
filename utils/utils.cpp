@@ -293,7 +293,7 @@ void GetDataFromLogFile(string trace_file, LogData *result) {
                     chunk_flows.push_back(flow);
                 }
             }
-            int src, dest, srcrack, destrack, nbytes;
+            int src, dest, srcrack, destrack, nbytes, srcport, dstport;
             double start_time_ms;
             GetFirstInt(linec, src);
             GetFirstInt(linec, dest);
@@ -301,7 +301,9 @@ void GetDataFromLogFile(string trace_file, LogData *result) {
             GetFirstInt(linec, destrack);
             GetFirstInt(linec, nbytes);
             GetFirstDouble(linec, start_time_ms);
-            flow = new Flow(src, 0, dest, 0, nbytes, start_time_ms);
+            GetFirstInt(linec, srcport);
+            GetFirstInt(linec, dstport);
+            flow = new Flow(src, srcport, dest, dstport, nbytes, start_time_ms);
             // Set flow paths
             MemoizedPaths *memoized_paths =
                 result->GetMemoizedPaths(srcrack, destrack);
@@ -461,7 +463,7 @@ void ProcessFlowLines(vector<FlowLines> &all_flow_lines, LogData *result,
         // cout << flow_lines.fid_c << flow_lines.fpt_c << flow_lines.ss_c[0] <<
         // endl;
         /* FID line */
-        int src, dest, srcrack, destrack, nbytes;
+        int src, dest, srcrack, destrack, nbytes, srcport, dstport;
         double start_time_ms;
         char *restore_c = flow_lines.fid_c;
         GetFirstInt(flow_lines.fid_c, src);
@@ -470,9 +472,11 @@ void ProcessFlowLines(vector<FlowLines> &all_flow_lines, LogData *result,
         GetFirstInt(flow_lines.fid_c, destrack);
         GetFirstInt(flow_lines.fid_c, nbytes);
         GetFirstDouble(flow_lines.fid_c, start_time_ms);
+        GetFirstInt(flow_lines.fid_c, srcport);
+        GetFirstInt(flow_lines.fid_c, dstport);
         flow_lines.fid_c = restore_c;
         Flow *flow = &(flows_threads[ii]);
-        *flow = Flow(src, 0, dest, 0, nbytes, start_time_ms);
+        *flow = Flow(src, srcport, dest, dstport, nbytes, start_time_ms);
 
         // Set flow paths: If flow active and ACTIVE_PROBES_PATH_KNOWN is set
         // then there is only one path

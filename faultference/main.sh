@@ -12,13 +12,14 @@ localization_logs=${logdir}/localization
 modified_topo_dir=${logdir}/modified_topos
 micro_change_dir=${logdir}/micro_changes
 plog_dir=${logdir}/plog_dir
+topo_name=${topoprefix:0:8}
 
 mkdir -p ${logdir} ${flowsim_logs} ${modified_topo_dir} ${localization_logs} ${micro_change_dir} ${plog_dir}
 
 # Parameters
 nfails=1
-nthreads=1
-maxiter=25
+nthreads=2
+maxiter=200
 max_links=1
 
 echo "nfails: ${nfails}" >> ${logdir}/config
@@ -49,7 +50,7 @@ eq_size=0
 while [ ${iter} -le ${maxiter} ]
 do
     echo ${inputs} >> ${logdir}/input
-    ./estimator_agg 0.0 1000000.01 ${nthreads} ${sequence_mode} ${inference_mode} ${inputs} > ${localization_logs}/iter_${iter}
+    ./estimator_agg 0.0 1000000.01 ${nthreads} ${sequence_mode} ${inference_mode} ${topo_name} ${inputs} > ${localization_logs}/iter_${iter}
     cat ${localization_logs}/iter_${iter} | grep "Best MicroChange" | grep "REMOVE_LINK" | sed 's/[^[0-9\.]\[*/ /g' | sed 's/[ ][ ]*/ /g' | awk '{print $1" "$2}' | head -n${max_links} > ${micro_change_dir}/iter_${iter}
     new_eq_devices=`cat ${localization_logs}/iter_${iter} | grep "equivalent devices" | grep "equivalent devices" | sed 's/equivalent devices //' | sed 's/size.*//'`
     new_eq_size=`echo ${new_eq_devices} | sed 's/]//'g | sed 's/\[//'g | awk -F',' '{print NF}'`

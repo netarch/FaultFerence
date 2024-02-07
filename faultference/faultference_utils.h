@@ -40,13 +40,13 @@ Link GetMostUsedLink(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
 
 set<int> LocalizeViaFlock(LogData *data, int ntraces, string fail_file,
                           double min_start_time_ms, double max_finish_time_ms,
-                          int nopenmp_threads);
+                          int nopenmp_threads, string topo_name);
 
 int IsProblemSolved(LogData *data, double max_finish_time_ms);
 
 set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
                            double min_start_time_ms, double max_finish_time_ms,
-                           int nopenmp_threads);
+                           int nopenmp_threads, string topo_name);
 
 void GetDeviceColors(set<int> &equivalent_devices, map<int, int> &device_colors,
                      set<set<int>> &eq_device_sets);
@@ -56,7 +56,7 @@ void GetColorCounts(map<int, int> &device_colors, map<int, int> &col_cnts);
 void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
                      double min_start_time_ms, double max_finish_time_ms,
                      int nopenmp_threads, string sequence_mode,
-                     string inference_mode);
+                     string inference_mode, string topo_name);
 
 pair<MicroChange*, double>
 GetBestMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
@@ -101,6 +101,11 @@ GetRandomLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
 set<PII> ViableSrcDstForActiveProbe(LogData *data, int ntraces,
                                     double min_start_time_ms,
                                     double max_finish_time_ms);
+
+/* Get <src, dst, srcport, dstport> tuple that had the most number of packet drops */
+tuple<int, int, int, int> SrcDstWithMaxDrops(LogData *data, vector<Flow *> *dropped_flows,
+                               int ntraces, double min_start_time_ms,
+                               double max_finish_time_ms, int nopenmp_threads);
 
 pair<ActiveProbeMc*, double>
 GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,

@@ -20,9 +20,20 @@ def TupleHash(t):
 
 
 class Flow(object):
-    def __init__(self, src, dst, flowsize, srcport=None, dstport=None):
+    def __init__(
+        self,
+        src,
+        dst,
+        flowsize,
+        srcport=None,
+        dstport=None,
+        header_src=None,
+        header_dst=None,
+    ):
         self.src = src
         self.dst = dst
+        self.header_src = header_src
+        self.header_dst = header_dst
         self.flowsize = flowsize
         if srcport == None:
             srcport = random.randint(1000, 1100)
@@ -38,7 +49,24 @@ class Flow(object):
         return paths[ind]
 
     def IsFlowActive(self):
+        if self.header_src != None or self.header_dst != None:
+            assert self.header_src != None and self.header_dst != None
+            return True
         return self.src < HOST_OFFSET or self.dst < HOST_OFFSET
+
+    # some active probes might have a different src/dst in the header than from where they are sent
+    def SetHeaderSrcDst(self, header_src, header_dst):
+        self.header_src = header_src
+        self.header_dst = header_dst
+
+    def GetHeaderSrcDst(self):
+        src = self.src
+        dst = self.dst
+        if self.header_src != None:
+            src = self.header_src
+        if self.header_dst != None:
+            dst = self.header_dst
+        return (src, dst)
 
 
 class Topology(object):
@@ -192,10 +220,22 @@ class Topology(object):
         dstport = random.randint(1000, 2000)
         with open(active_probes_file, "r") as apfile:
             for line in apfile:
-                src, dst, nprobes = [int(x) for x in line.split()[:3]]
+                src, dst, nprobes, header_src, header_dst = [
+                    int(x) for x in line.split()[:5]
+                ]
                 #!NOTE: all of them go onto the same path
                 for __ in range(nprobes):
-                    active_probes.append(Flow(src, dst, 1, srcport, dstport))
+                    active_probes.append(
+                        Flow(
+                            src,
+                            dst,
+                            1,
+                            srcport,
+                            dstport,
+                            header_src=header_src,
+                            header_dst=header_dst,
+                        )
+                    )
         return active_probes
 
     def ReadFlowsFromFile(G, flows_file):
@@ -403,12 +443,11 @@ class Topology(object):
         return fail_prob
 
     def PrintPaths(self, all_sw_pair_paths):
-        switches = [node for node in self.G.nodes() if node < HOST_OFFSET]
-        for src_sw in switches:
+        for src_sw in all_sw_pair_paths:
             if src_sw % 10 == 0:
                 print("Printing paths", src_sw)
             src_paths = all_sw_pair_paths[src_sw]
-            for dst_sw in switches:
+            for dst_sw in all_sw_pair_paths[src_sw]:
                 # print(src_rack, dst_rack, len(src_paths[dst_rack]), file=self.outfile)
                 for path in src_paths[dst_sw]:
                     if path != []:
@@ -508,8 +547,9 @@ class Topology(object):
         # print("Fail prob", fail_prob)
 
         def GetFailProb(device, flow):
-            if (device, flow.src, flow.dst) in fail_prob:
-                return fail_prob[(device, flow.src, flow.dst)]
+            src, dst = flow.GetHeaderSrcDst()
+            if (device, src, dst) in fail_prob:
+                return fail_prob[(device, src, dst)]
             else:
                 return 5.0e-8  #!TODO: what should this be
 
@@ -519,8 +559,27 @@ class Topology(object):
             prob = fail_prob[(device, src, dst)]
             print("Failing_link", device, device, prob, file=self.outfile)
 
-        self.PrintPaths(all_rack_pair_paths)
+        filtered_pairs = set()
+        for failed_device, src_device, dst_device in self.failed_components:
+            src_rack = self.host_rack_map[src_device]
+            dst_rack = self.host_rack_map[dst_device]
+            devices_in_path = set()
+            for path in all_rack_pair_paths[src_rack][dst_rack]:
+                for d1 in path:
+                    for d2 in path:
+                        if d1 != d2:
+                            filtered_pairs.add((d1, d2))
 
+        filtered_paths = {}
+        for src, dst in filtered_pairs:
+            if not src in filtered_paths:
+                filtered_paths[src] = {}
+            if not dst in filtered_paths:
+                filtered_paths[dst] = {}
+            filtered_paths[src][dst] = all_rack_pair_paths[src][dst]
+            filtered_paths[dst][src] = all_rack_pair_paths[dst][src]
+
+        self.PrintPaths(filtered_paths)
         for flow in itertools.chain(flows, active_probes):
             src_rack = flow.src
             dst_rack = flow.dst
@@ -554,6 +613,8 @@ class Topology(object):
                 dst_rack,
                 flow.flowsize,
                 0.0,
+                flow.srcport,
+                flow.dstport,
                 file=self.outfile,
             )
             self.PrintPath("FPT", path_taken, out=self.outfile)
@@ -664,6 +725,8 @@ class Topology(object):
                 complete_path[-2],
                 flow.flowsize,
                 0.0,
+                flow.srcport,
+                flow.dstport,
                 file=self.outfile,
             )
             self.PrintPath("FPT", complete_path[1:-1], out=self.outfile)
@@ -721,6 +784,8 @@ class Topology(object):
                 complete_path[-2],
                 packetsize * packets_sent,
                 0.0,
+                flow.srcport,
+                flow.dstport,
                 file=self.outfile,
             )
             self.PrintPath("FPT", complete_path[1:-1], out=self.outfile)

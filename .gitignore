@@ -2,6 +2,6 @@
 *.swp
 *.pyc
 .DS_store
-logs/
+calibration_logs/
 sweep_logs/
 *.a

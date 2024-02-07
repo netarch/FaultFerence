@@ -1,9 +1,10 @@
 import sys
+import os
 import networkx as nx
 
-if not len(sys.argv) == 6: 
-	print("Required number of arguments: 4.", len(sys.argv)-1, "provided")
-	print("Arguments: <degree>  <oversubscription> <instance number> <prefixFile> <bi-directional:true/false>")
+if not len(sys.argv) == 4: 
+	print("Required number of arguments: 3.", len(sys.argv)-1, "provided")
+	print("Arguments: <degree> <oversubscription> <bi-directional:true/false>")
 	sys.exit()
 
 k = int(sys.argv[1])
@@ -11,10 +12,8 @@ switches = int((5 * k * k)/4)
 servers = int((k * k * k)/4)
 tors = int((k * k)/2)
 oversubscription = int(sys.argv[2])
-instance = int(sys.argv[3])
-prefixFile = sys.argv[4]
-bi_dir = sys.argv[5]
-outputFile = "%s_deg%d_sw%d_svr%d_os%d_i%d.edgelist" % (prefixFile, k, switches, servers, oversubscription, instance)
+bi_dir = sys.argv[3]
+outputFile = "ft_deg%d_sw%d_svr%d_os%d_bidir_%s.edgelist" % (k, switches, servers, oversubscription, bi_dir)
 
 G = nx.Graph()
 
@@ -32,7 +31,7 @@ for pod in range(0, k):
             G.add_edge(aggind, coreind)
 
 
-with open(outputFile, 'w') as f:
+with open(os.path.join("..",outputFile), 'w') as f:
     edges =  G.edges()
     for (u,v) in edges:
         f.write(str(u) + " " + str(v) + "\n")
