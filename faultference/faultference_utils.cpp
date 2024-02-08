@@ -354,85 +354,74 @@ set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
                            double min_start_time_ms, double max_finish_time_ms,
                            int nopenmp_threads, string topo_name) {
 
-    set<vector<Link>> localized_paths;
+    set<int> localized_devices, new_localized_devices;
+    
+    map<Flow *, map<int, int>> path_per_link_per_flow;
+    map<Flow *, int> min_path_per_link_per_flow;
+    int min_path_per_link = 1000;
     for (Flow *flow : data[0].flows) {
         vector<Path *> *flow_paths = flow->GetPaths(max_finish_time_ms);
         for (Path *path : *flow_paths) {
-            vector<Link> path_link;
             for (int link_id : *path) {
                 Link link = data[0].inverse_links[link_id];
-                path_link.push_back(link);
+                if (link.first == link.second) {
+                    localized_devices.insert(link.first);
+                }
+                path_per_link_per_flow[flow].emplace(link_id, 0);
+                path_per_link_per_flow[flow][link_id] += 1;
             }
-            localized_paths.insert(path_link);
+        }
+        for(auto it = path_per_link_per_flow[flow].begin(); it != path_per_link_per_flow[flow].end(); ++it) {
+            if (it->second <= min_path_per_link){
+                min_path_per_link = it->second;
+            }
         }
     }
 
-    set<int> healthy_devices;
-
     for (int ii = 1; ii < ntraces; ii++) {
-        set<vector<Link>> new_localized_paths;
-        set<vector<Link>> temp;
+        set<int> new_localized_devices;
+        set<int> temp_devices;
         for (Flow *flow : data[ii].flows) {
             vector<Path *> *flow_paths = flow->GetPaths(max_finish_time_ms);
             for (Path *path : *flow_paths) {
-                vector<Link> path_link;
                 for (int link_id : *path) {
                     Link link = data[ii].inverse_links[link_id];
-                    path_link.push_back(link);
-                }
-                new_localized_paths.insert(path_link);
-            }
-        }
-
-        cout << "Localized paths in iter " << ii << ": " << localized_paths
-             << endl;
-        cout << "Count " << localized_paths.size() << endl;
-
-        cout << "New localized paths in iter " << ii << ": "
-             << new_localized_paths << endl;
-        cout << "Count " << new_localized_paths.size() << endl;
-
-        if (IsProblemSolved(&(data[ii]), max_finish_time_ms) == 1) {
-            cout << "Problem was solved" << endl;
-            set_difference(localized_paths.begin(), localized_paths.end(),
-                           new_localized_paths.begin(),
-                           new_localized_paths.end(),
-                           std::inserter(temp, temp.begin()));
-            for (vector<Link> path : new_localized_paths) {
-                for (Link link : path) {
                     if (link.first == link.second) {
-                        healthy_devices.insert(link.first);
+                        new_localized_devices.insert(link.first);
                     }
                 }
             }
+        }
+
+        cout << "Localized paths in iter " << ii << ": " << localized_devices
+             << endl;
+        cout << "Count " << localized_devices.size() << endl;
+
+        cout << "New localized paths in iter " << ii << ": "
+             << new_localized_devices << endl;
+        cout << "Count " << new_localized_devices.size() << endl;
+
+        if (IsProblemSolved(&(data[ii]), max_finish_time_ms, min_path_per_link) == 1) {
+            cout << "Problem was solved" << endl;
+            set_difference(localized_devices.begin(), localized_devices.end(),
+                           new_localized_devices.begin(),
+                           new_localized_devices.end(),
+                           std::inserter(temp_devices, temp_devices.begin()));
         } else {
             cout << "Problem was not solved" << endl;
-            set_intersection(localized_paths.begin(), localized_paths.end(),
-                             new_localized_paths.begin(),
-                             new_localized_paths.end(),
-                             std::inserter(temp, temp.begin()));
+            set_intersection(localized_devices.begin(), localized_devices.end(),
+                             new_localized_devices.begin(),
+                             new_localized_devices.end(),
+                             std::inserter(temp_devices, temp_devices.begin()));
         }
 
-        localized_paths = temp;
+        localized_devices = temp_devices;
     }
 
-    set<int> equivalent_devices;
-    set<int> temp2;
-    for (vector<Link> path : localized_paths) {
-        for (Link link : path) {
-            if (link.first == link.second) {
-                equivalent_devices.insert(link.first);
-            }
-        }
-    }
-    set_difference(equivalent_devices.begin(), equivalent_devices.end(),
-                   healthy_devices.begin(), healthy_devices.end(),
-                   std::inserter(temp2, temp2.begin()));
-    equivalent_devices = temp2;
-    return equivalent_devices;
+    return localized_devices;
 }
 
-int IsProblemSolved(LogData *data, double max_finish_time_ms) {
+int IsProblemSolved(LogData *data, double max_finish_time_ms, const int min_path_per_link) {
     float failure_threshold = 0.5;
     int shortest_paths = 0;
     int failed_flows = 0, total_flows = 0;
@@ -446,10 +435,19 @@ int IsProblemSolved(LogData *data, double max_finish_time_ms) {
         shortest_paths = (flow->GetPaths(max_finish_time_ms))->size();
     }
     cout << "Shortest paths " << shortest_paths << endl;
+    cout << "Minimum paths per link " << min_path_per_link << endl;
     cout << "Total flows " << total_flows << endl;
     cout << "Failed flows " << failed_flows << endl;
-    if (((float)failed_flows) / total_flows <=
-        failure_threshold / shortest_paths) {
+
+    double p_inverse = double(shortest_paths)/min_path_per_link;
+    double mean = double(total_flows) / p_inverse;
+    double std_dev = sqrt(double(total_flows * (p_inverse - 1))/(p_inverse*p_inverse));
+    cout << "Standard Deviation " << std_dev << endl;
+    cout << "Old equation: " << float(failed_flows)/total_flows << " <= " << failure_threshold / shortest_paths << endl;
+    cout << "New equation: " << float(failed_flows) << " <= " << mean - 3*std_dev << endl;
+
+    // if (float(failed_flows) / total_flows <= failure_threshold / shortest_paths) {
+    if (failed_flows <= mean - 3*std_dev) {
         return 1;
     }
     return 0;
