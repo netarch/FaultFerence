@@ -299,10 +299,10 @@ void GetDataFromLogFile(string trace_file, LogData *result) {
             GetFirstInt(linec, dest);
             GetFirstInt(linec, srcrack);
             GetFirstInt(linec, destrack);
-            GetFirstInt(linec, nbytes);
-            GetFirstDouble(linec, start_time_ms);
             GetFirstInt(linec, srcport);
             GetFirstInt(linec, dstport);
+            GetFirstInt(linec, nbytes);
+            GetFirstDouble(linec, start_time_ms);
             flow = new Flow(src, srcport, dest, dstport, nbytes, start_time_ms);
             // Set flow paths
             MemoizedPaths *memoized_paths =
@@ -470,10 +470,11 @@ void ProcessFlowLines(vector<FlowLines> &all_flow_lines, LogData *result,
         GetFirstInt(flow_lines.fid_c, dest);
         GetFirstInt(flow_lines.fid_c, srcrack);
         GetFirstInt(flow_lines.fid_c, destrack);
-        GetFirstInt(flow_lines.fid_c, nbytes);
-        GetFirstDouble(flow_lines.fid_c, start_time_ms);
         GetFirstInt(flow_lines.fid_c, srcport);
         GetFirstInt(flow_lines.fid_c, dstport);
+        GetFirstInt(flow_lines.fid_c, nbytes);
+        GetFirstDouble(flow_lines.fid_c, start_time_ms);
+        assert (srcport != 0 and dstport != 0);
         flow_lines.fid_c = restore_c;
         Flow *flow = &(flows_threads[ii]);
         *flow = Flow(src, srcport, dest, dstport, nbytes, start_time_ms);

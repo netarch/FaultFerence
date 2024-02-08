@@ -143,7 +143,7 @@ class Topology(object):
         flowsize = (np.random.pareto(shape) + 1) * scale
         while flowsize > 100 * 1024 * 1024:
             flowsize = (np.random.pareto(shape) + 1) * scale
-        return flowsize
+        return int(flowsize)
 
     def GetFlowsSkewed(self, nflows):
         # print("Using skewed_random TM: fraction_busy", fraction_busy, "nflows", nflows, "randint", random.randint(0,100000), "racks", nracks, "servers", nservers)
@@ -216,14 +216,12 @@ class Topology(object):
 
     def ReadActiveProbesFromFile(self, active_probes_file):
         active_probes = []
-        srcport = random.randint(1000, 2000)
-        dstport = random.randint(1000, 2000)
         with open(active_probes_file, "r") as apfile:
             for line in apfile:
-                src, dst, nprobes, header_src, header_dst = [
-                    int(x) for x in line.split()[:5]
+                src, dst, srcport, dstport, nprobes, header_src, header_dst = [
+                    int(x) for x in line.split()[:7]
                 ]
-                #!NOTE: all of them go onto the same path
+                #!NOTE: all of them go onto the path dictated by their 5 tuple
                 for __ in range(nprobes):
                     active_probes.append(
                         Flow(
@@ -611,10 +609,10 @@ class Topology(object):
                 flow.dst,
                 src_rack,
                 dst_rack,
-                flow.flowsize,
-                0.0,
                 flow.srcport,
                 flow.dstport,
+                flow.flowsize,
+                0.0,
                 file=self.outfile,
             )
             self.PrintPath("FPT", path_taken, out=self.outfile)
@@ -723,10 +721,10 @@ class Topology(object):
                 flow.dst,
                 complete_path[1],
                 complete_path[-2],
-                flow.flowsize,
-                0.0,
                 flow.srcport,
                 flow.dstport,
+                flow.flowsize,
+                0.0,
                 file=self.outfile,
             )
             self.PrintPath("FPT", complete_path[1:-1], out=self.outfile)
@@ -782,10 +780,10 @@ class Topology(object):
                 flow.dst,
                 complete_path[1],
                 complete_path[-2],
-                packetsize * packets_sent,
-                0.0,
                 flow.srcport,
                 flow.dstport,
+                packetsize * packets_sent,
+                0.0,
                 file=self.outfile,
             )
             self.PrintPath("FPT", complete_path[1:-1], out=self.outfile)

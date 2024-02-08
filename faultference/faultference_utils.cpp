@@ -840,6 +840,7 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
     auto [hsrc, hdst, srcport, dstport] =
         SrcDstWithMaxDrops(data, dropped_flows, ntraces, min_start_time_ms,
                            max_finish_time_ms, nopenmp_threads);
+    cout << "best tuple " << hsrc << " " << hdst << " " << srcport << " " << dstport << endl;
     ActiveProbeMc *amc =
         new ActiveProbeMc(best_src_dst.first, best_src_dst.second, srcport, dstport, nprobes,
                           hsrc, hdst);
