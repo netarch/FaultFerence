@@ -355,7 +355,7 @@ set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
                            int nopenmp_threads, string topo_name) {
 
     set<int> localized_devices, new_localized_devices;
-    
+
     map<Flow *, map<int, int>> path_per_link_per_flow;
     map<Flow *, int> min_path_per_link_per_flow;
     int min_path_per_link = 1000;
@@ -371,8 +371,9 @@ set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
                 path_per_link_per_flow[flow][link_id] += 1;
             }
         }
-        for(auto it = path_per_link_per_flow[flow].begin(); it != path_per_link_per_flow[flow].end(); ++it) {
-            if (it->second <= min_path_per_link){
+        for (auto it = path_per_link_per_flow[flow].begin();
+             it != path_per_link_per_flow[flow].end(); ++it) {
+            if (it->second <= min_path_per_link) {
                 min_path_per_link = it->second;
             }
         }
@@ -401,7 +402,8 @@ set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
              << new_localized_devices << endl;
         cout << "Count " << new_localized_devices.size() << endl;
 
-        if (IsProblemSolved(&(data[ii]), max_finish_time_ms, min_path_per_link) == 1) {
+        if (IsProblemSolved(&(data[ii]), max_finish_time_ms,
+                            min_path_per_link) == 1) {
             cout << "Problem was solved" << endl;
             set_difference(localized_devices.begin(), localized_devices.end(),
                            new_localized_devices.begin(),
@@ -421,7 +423,8 @@ set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
     return localized_devices;
 }
 
-int IsProblemSolved(LogData *data, double max_finish_time_ms, const int min_path_per_link) {
+int IsProblemSolved(LogData *data, double max_finish_time_ms,
+                    const int min_path_per_link) {
     float failure_threshold = 0.5;
     int shortest_paths = 0;
     int failed_flows = 0, total_flows = 0;
@@ -439,44 +442,99 @@ int IsProblemSolved(LogData *data, double max_finish_time_ms, const int min_path
     cout << "Total flows " << total_flows << endl;
     cout << "Failed flows " << failed_flows << endl;
 
-    double p_inverse = double(shortest_paths)/min_path_per_link;
+    double p_inverse = double(shortest_paths) / min_path_per_link;
     double mean = double(total_flows) / p_inverse;
-    double std_dev = sqrt(double(total_flows * (p_inverse - 1))/(p_inverse*p_inverse));
+    double std_dev =
+        sqrt(double(total_flows * (p_inverse - 1)) / (p_inverse * p_inverse));
     cout << "Standard Deviation " << std_dev << endl;
-    cout << "Old equation: " << float(failed_flows)/total_flows << " <= " << failure_threshold / shortest_paths << endl;
-    cout << "New equation: " << float(failed_flows) << " <= " << mean - 3*std_dev << endl;
+    cout << "Old equation: " << float(failed_flows) / total_flows
+         << " <= " << failure_threshold / shortest_paths << endl;
+    cout << "New equation: " << float(failed_flows)
+         << " <= " << mean - 3 * std_dev << endl;
 
-    // if (float(failed_flows) / total_flows <= failure_threshold / shortest_paths) {
-    if (failed_flows <= mean - 3*std_dev) {
+    // if (float(failed_flows) / total_flows <= failure_threshold /
+    // shortest_paths) {
+    if (failed_flows <= mean - 3 * std_dev) {
         return 1;
     }
     return 0;
+}
+
+bool CheckNoBranch(LogData *data, vector<Path *> *flow_paths, int src,
+                   int dst) {
+    // cout << "CheckNoBranch " << src << " " << dst << " " << data << endl;
+    MemoizedPaths *mpaths = data->GetMemoizedPaths(src, dst);
+    unordered_set<int> devices;
+    for (Path *path : mpaths->paths) {
+        // cout << "path for " << src << " " << dst << " " << *path << endl;
+        for (int link_id : *path) {
+            Link link = data->inverse_links[link_id];
+            devices.insert(link.first);
+            devices.insert(link.second);
+        }
+    }
+    // cout << "devices: " << devices << endl;
+    bool branch = true;
+    for (Path *path : *flow_paths) {
+        for (int link_id : *path) {
+            Link link = data->inverse_links[link_id];
+            // cout << "Link in path " << link << endl;
+            if (link.second != src and
+                devices.find(link.second) != devices.end() and
+                devices.find(link.first) == devices.end()) {
+                // incoming branch
+                // check if there's a path from src->dst that does not go
+                // through link.second if yes, then it is a branch and we can't
+                // eliminate this sub-graph
+                bool path_exists = false;
+                for (Path *path : mpaths->paths) {
+                    bool intersect = true;
+                    for (int mid : *path) {
+                        Link mlink = data->inverse_links[mid];
+                        intersect = intersect or (mlink.first == link.second) or
+                                    (mlink.second == link.second);
+                    }
+                    path_exists = path_exists or (!intersect);
+                }
+                if (path_exists)
+                    return false;
+            }
+            if (link.first != dst and
+                devices.find(link.first) != devices.end() and
+                devices.find(link.second) == devices.end()) {
+                // outgoing branch
+                assert(link.first != src);
+                return false;
+            }
+        }
+    }
+    // cout << "******* passed " << endl;
+    return true;
 }
 
 set<PII> ViableSrcDstForActiveProbe(LogData *data, int ntraces,
                                     double min_start_time_ms,
                                     double max_finish_time_ms) {
     set<PII> src_dst_pairs;
-    for (int ii = 0; ii < ntraces; ii++) {
-        for (Flow *flow : data[ii].flows) {
+    for (int t = 0; t < ntraces; t++) {
+        for (Flow *flow : data[t].flows) {
             vector<Path *> *flow_paths = flow->GetPaths(max_finish_time_ms);
             for (Path *path : *flow_paths) {
                 Path dpath;
-                data[ii].GetDeviceLevelPath(flow, *path, dpath);
+                data[t].GetDeviceLevelPath(flow, *path, dpath);
+                int dst = dpath[dpath.size() - 1];
                 // cout << "path " << dpath << endl;
-                for (int ii = 0; ii < dpath.size(); ii++) {
-                    for (int jj = ii + 1; jj < dpath.size(); jj++) {
-                        if (data[ii].IsNodeSwitch(dpath[ii]) and
-                            data[ii].IsNodeSwitch(dpath[jj]) and
-                            dpath[ii] != dpath[jj]) {
-                            src_dst_pairs.insert(PII(dpath[ii], dpath[jj]));
-                        }
+                for (int i = 0; i < dpath.size() - 1; i++) {
+                    if (data[t].IsNodeSwitch(dpath[i]) and
+                        data[t].IsNodeSwitch(dst) and dpath[i] != dst and
+                        CheckNoBranch(&data[t], flow_paths, dpath[i], dst)) {
+                        src_dst_pairs.insert(PII(dpath[i], dst));
                     }
                 }
             }
-            // assert (ii == 0);
+            // assert (t == 0);
         }
-        cout << "ViableSrcDstForActiveProbe: finished iteration " << ii << endl;
+        cout << "ViableSrcDstForActiveProbe: finished iteration " << t << endl;
     }
     return src_dst_pairs;
 }
@@ -784,16 +842,16 @@ int EvaluateActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows,
 
 typedef tuple<int, int, int, int> TupIIII;
 TupIIII SrcDstWithMaxDrops(LogData *data, vector<Flow *> *dropped_flows,
-                                  int ntraces, double min_start_time_ms,
-                                  double max_finish_time_ms,
-                                  int nopenmp_threads) {
+                           int ntraces, double min_start_time_ms,
+                           double max_finish_time_ms, int nopenmp_threads) {
     map<TupIIII, int> tup_cnts;
     TupIIII ret_tup;
     int max_cnt = 0;
     for (int ii = 0; ii < ntraces; ii++) {
         for (Flow *flow : dropped_flows[ii]) {
             if (!flow->IsFlowActive()) {
-                TupIIII tup(flow->src, flow->dest, flow->srcport, flow->destport);
+                TupIIII tup(flow->src, flow->dest, flow->srcport,
+                            flow->destport);
                 if (tup_cnts.find(tup) == tup_cnts.end())
                     tup_cnts[tup] = 0;
                 if (++tup_cnts[tup] > max_cnt) {
@@ -817,6 +875,7 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
         data, ntraces, min_start_time_ms, max_finish_time_ms);
     int max_pairs = 0;
     PII best_src_dst = PII(-1, -1);
+    cout << "Viable src dst pairs " << src_dst_pairs << endl;
     for (PII src_dst : src_dst_pairs) {
         //! TODO: make naming consistent
         //! TODO: implement EvaluateActiveProbeMc
@@ -838,10 +897,16 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
     auto [hsrc, hdst, srcport, dstport] =
         SrcDstWithMaxDrops(data, dropped_flows, ntraces, min_start_time_ms,
                            max_finish_time_ms, nopenmp_threads);
-    cout << "best tuple " << hsrc << " " << hdst << " " << srcport << " " << dstport << endl;
+    // if dst is dst_rack, might as well make it the dst host
+    if (!data[0].IsNodeSwitch(hdst) and
+        data[0].hosts_to_racks[hdst] == best_src_dst.second) {
+        best_src_dst.second = hdst;
+    }
+    cout << "best tuple " << best_src_dst << " " << hsrc << " " << hdst << " "
+         << srcport << " " << dstport << endl;
     ActiveProbeMc *amc =
-        new ActiveProbeMc(best_src_dst.first, best_src_dst.second, srcport, dstport, nprobes,
-                          hsrc, hdst);
+        new ActiveProbeMc(best_src_dst.first, best_src_dst.second, srcport,
+                          dstport, nprobes, hsrc, hdst);
     return pair<ActiveProbeMc *, double>(amc, (double)max_pairs);
 }
 

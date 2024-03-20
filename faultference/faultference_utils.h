@@ -98,6 +98,7 @@ GetRandomLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
 /** end of utility functions for link removal microchange **/
 
 /* Utility functions for active probe microchange */
+bool CheckNoBranch(LogData *data, vector<Path *> *flow_paths, int src, int dst);
 set<PII> ViableSrcDstForActiveProbe(LogData *data, int ntraces,
                                     double min_start_time_ms,
                                     double max_finish_time_ms);

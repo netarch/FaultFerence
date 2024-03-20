@@ -12,11 +12,14 @@ import networkx as nx
 HOST_OFFSET = 10000
 
 
-def TupleHash(t):
+def TupleHash2(t):
     res = 1
     for num in t:
         res = res * 8191 + (num * 2654435761 % 1000000009)
     return res
+
+def TupleHash(t):
+    return hash(t)
 
 
 class Flow(object):
@@ -36,17 +39,63 @@ class Flow(object):
         self.header_dst = header_dst
         self.flowsize = flowsize
         if srcport == None:
-            srcport = random.randint(1000, 1100)
+            srcport = random.randint(1000, 60000)
         if dstport == None:
-            dstport = random.randint(1000, 1100)
+            dstport = random.randint(1000, 60000)
         self.srcport = srcport
         self.dstport = dstport
 
-    def HashToPath(self, paths):
-        ftuple = self.src, self.dst, self.srcport, self.dstport
+    def HashToPath(self, paths, node_hash=False):
+        if node_hash:
+            return self.NodeHash(paths)
+        else:
+            return self.PathHash(paths)
+
+    def PathHash(self, paths):
+        src, dst = self.GetHeaderSrcDst()
+        ftuple = src, dst, self.srcport, self.dstport
         ind = TupleHash(ftuple) % len(paths)
         # print(ftuple, ind)
         return paths[ind]
+
+    # will only work if paths are ECMP style paths
+    def NodeHash(self, paths):
+        src, dst = self.GetHeaderSrcDst()
+        def HashNextHops(node, hops):
+            ftuple = src, dst, node, self.srcport, self.dstport
+            ind = TupleHash(ftuple)
+            ind %= 1000000007
+            ind %= 1000003
+            ind %= 1009
+            ind %= len(hops)
+            if len(hops) > 1:
+                print("Hashing", hops, ind, ftuple)
+            return hops[ind]
+
+        next_hops = dict()
+        start = set()
+        for path in paths:
+            start.add(path[0])
+            for i in range(0, len(path)-1):
+                u, v = path[i], path[i+1]
+                if u not in next_hops:
+                    next_hops[u] = set()
+                next_hops[u].add(v)
+        start = sorted(start)
+        for u in next_hops:
+            next_hops[u] = sorted(next_hops[u])
+        ret = []
+        curr = HashNextHops(self.src, start)
+        ret.append(curr)
+        # print(curr, ret, next_hops)
+        while curr in next_hops:
+            # print("hash next hops", curr, next_hops[curr], ret)
+            curr = HashNextHops(curr, next_hops[curr])
+            # print("next hop", curr, ret) 
+            ret.append(curr)
+        # print("chosen path", ret)
+        return ret
+
 
     def IsFlowActive(self):
         if self.header_src != None or self.header_dst != None:
@@ -182,8 +231,8 @@ class Topology(object):
             src_rack = self.host_rack_map[src]
             dst_rack = self.host_rack_map[dst]
             flowsize = self.GetParetoFlowSize()
-            srcport = random.randint(1000, 1100)
-            dstport = random.randint(1000, 1100)
+            srcport = random.randint(1000, 60000)
+            dstport = random.randint(1000, 60000)
             flows.append(Flow(src, dst, flowsize, srcport, dstport))
         return flows
 
@@ -252,8 +301,8 @@ class Topology(object):
         for src, dst in src_dst_pairs:
             for t in range(nflows_per_failed_pair):
                 flowsize = self.GetParetoFlowSize()
-                srcport = random.randint(1000, 2000)
-                dstport = random.randint(1000, 2000)
+                srcport = random.randint(10000, 30000)
+                dstport = random.randint(10000, 30000)
                 flows.append(Flow(src, dst, flowsize, srcport, dstport))
         return flows
 
@@ -284,8 +333,8 @@ class Topology(object):
                 if (i * nflows_per_src_dst + t) % 50000 == 0:
                     print("Finished", i * nflows_per_src_dst + t, "flows")
                 flowsize = self.GetParetoFlowSize()
-                srcport = random.randint(1000, 2000)
-                dstport = random.randint(1000, 2000)
+                srcport = random.randint(1000, 60000)
+                dstport = random.randint(1000, 60000)
                 flows[i * nflows_per_src_dst + t] = Flow(
                     src, dst, flowsize, srcport, dstport
                 )
@@ -535,7 +584,7 @@ class Topology(object):
         if len(args.duplicate_link) == 2:
             self.AddDuplicatePaths(all_rack_pair_paths, args.duplicate_link)
 
-        nflows_per_failed_pair = 2000
+        nflows_per_failed_pair = 5000
         flows = self.GetFlowsBlackHole(nflows_per_failed_pair)
         active_probes = []
         if args.active_probes_file is not None:
@@ -588,7 +637,7 @@ class Topology(object):
             # print(src, dst, flowsize)
             # if (flow.src, flow.dst) in self.failed_src_dst_pairs:
             #    print("Failed pair", flow.src, flow.dst)
-            path_taken = flow.HashToPath(all_rack_pair_paths[src_rack][dst_rack])
+            path_taken = flow.HashToPath(all_rack_pair_paths[src_rack][dst_rack], node_hash=True)
             # print(path_taken, src_rack, dst_rack)
             # first_link = (flow.src, src_rack)
             # last_link = (dst_rack, flow.dst)

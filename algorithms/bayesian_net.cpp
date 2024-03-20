@@ -14,6 +14,9 @@
 using google::dense_hash_set;
 using namespace std;
 
+bool USE_HACK_FIRST_LAST_LINK_ACTIVE = true;
+
+
 //! TODO: Change to smart pointers for easier GC
 //! TODO: Add code for REVERSE_PATH
 
@@ -1281,8 +1284,14 @@ void BayesianNet::ComputeInitialLikelihoodsHelper(
                 //! TODO; TODO: TODO
                 assert(false);
             }
-            likelihoods[thread_num][flow->first_link_id] += log_likelihood;
-            likelihoods[thread_num][flow->last_link_id] += log_likelihood;
+
+            //!HACK: if the first/last links are devices, they are repeated in the paths
+            //       in that case, skip this part since they would have been accounted 
+            //       for with the path links
+            if (!USE_HACK_FIRST_LAST_LINK_ACTIVE or (!data->IsLinkDevice(flow->first_link_id)))
+                likelihoods[thread_num][flow->first_link_id] += log_likelihood;
+            if (!USE_HACK_FIRST_LAST_LINK_ACTIVE or (!data->IsLinkDevice(flow->last_link_id)))
+                likelihoods[thread_num][flow->last_link_id] += log_likelihood;
         }
     }
 
