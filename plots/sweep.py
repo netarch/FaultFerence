@@ -11,8 +11,9 @@ import matplotlib.font_manager as fm
 
 log_path = sys.argv[1]
 START_INDEX = 1
-ITERATIONS = 100
-TOPOLOGY_PREFIX = "ft"
+ITERATIONS = 200
+MAX_NUM_STEPS = 250 # This is useful while calculating the average equivalent device size per step
+TOPOLOGY_PREFIX = "rg"
 DEGREE_SWITCH_MAPPING = {
     10: 125,
     12: 180,
@@ -45,6 +46,8 @@ INFERENCE_SCHEME_MAPPING = {
 ALL_STEPS = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 AVG_STEPS = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 CONFIDENCE_INTERVAL = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+ALL_DEVICE_SIZES = defaultdict(lambda: defaultdict(list))
+AVG_DEVICE_SIZES = defaultdict(lambda: defaultdict(int))
 LAST_DEVICES = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 AVG_LAST_DEVICES = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 
@@ -61,8 +64,6 @@ for topology in os.listdir(log_path):
         continue
     topo_degree = int(topology.lstrip(TOPOLOGY_PREFIX + "_deg")[:2])
     topology_path = os.path.join(log_path, topology)
-    if topo_degree > 20:
-        continue
     for iter_index in range(START_INDEX, ITERATIONS + START_INDEX):
         iter_string = str(iter_index)
         iter_path = os.path.join(topology_path, iter_string)
@@ -79,6 +80,8 @@ for topology in os.listdir(log_path):
                 continue
 
             for inference_scheme in os.listdir(sequence_path):
+                if inference_scheme == "Naive_old":
+                    continue
                 inference_path = os.path.join(sequence_path, inference_scheme)
 
                 # If the run is still ongoing / failed due to some error - this raises a warning
@@ -92,10 +95,16 @@ for topology in os.listdir(log_path):
                     print("WARNING:", topo_degree, iter_string, inference_scheme, sequence_scheme, "- some iterations were killed in this run")
                     continue
                 num_steps = int(open(os.path.join(inference_path, "num_steps")).read())
-                last_devices = int(open(os.path.join(inference_path, "equivalent_devices")).readlines()[-2].split(", Devices:")[0].split("Size: ")[1])
+                all_devices_sizes = [int(stringy.split(", Devices:")[0].split("Size: ")[1]) for stringy in open(os.path.join(inference_path, "equivalent_devices")).readlines()[:-2]]
+                last_devices = all_devices_sizes[-1]
+                all_devices_sizes = all_devices_sizes + [last_devices for x in range(MAX_NUM_STEPS - len(all_devices_sizes))]
+
                 last_devices_list = open(os.path.join(inference_path, "equivalent_devices")).readlines()[-2].split(", Devices: [")[1].split("]")[0].split(", ")
                 failed_device = int(open(os.path.join(iter_path, "initial.fails")).read().split(" ")[3])
                 
+                if num_steps == 0 and not last_devices_list == [""] and last_devices == int(last_devices_list[0]):
+                    continue
+
                 if last_devices_list == [""]:
                     # HACK - Naive_Old had this bug where it reduced equivalent class to 0 because of an incorrect algorithm
                     if inference_scheme == "Naive_old":
@@ -115,11 +124,16 @@ for topology in os.listdir(log_path):
                         PRECISION[sequence_scheme][inference_scheme][topo_degree].append(0)
                         RECALL[sequence_scheme][inference_scheme][topo_degree].append(0)
 
-                ALL_STEPS[sequence_scheme][inference_scheme][topo_degree].append(num_steps)
+                ALL_STEPS[sequence_scheme][inference_scheme][topo_degree].append(num_steps + (last_devices//2))
                 LAST_DEVICES[sequence_scheme][inference_scheme][topo_degree].append(last_devices)
+                if topo_degree == 20:
+                    ALL_DEVICE_SIZES[sequence_scheme][inference_scheme].append(all_devices_sizes)
 
 for sequence_scheme in ALL_STEPS:
     for inference_scheme in ALL_STEPS[sequence_scheme]:
+        ALL_DEVICES_TEMP = ALL_DEVICE_SIZES[sequence_scheme][inference_scheme]
+        AVG_DEVICE_SIZES[sequence_scheme][inference_scheme] = [np.mean([ALL_DEVICES_TEMP[y][x] for y in range(len(ALL_DEVICES_TEMP))]) for x in range(MAX_NUM_STEPS)]
+
         for topo_degree in ALL_STEPS[sequence_scheme][inference_scheme]:
             all_steps = ALL_STEPS[sequence_scheme][inference_scheme][topo_degree]
             AVG_STEPS[sequence_scheme][inference_scheme][topo_degree] = np.mean(all_steps)
@@ -139,9 +153,9 @@ colors = ["#f1a200", "#995ec3", "#7fbf7b", "#cf4c32", "seagreen", "black"]
 markers = ['o', 's', '^', 'v', 'p', '*', 'p', 'h']
 # linestyles = ["-", ":", "-.", "dotted"]
 
+# Plot 1 specific code starts
 fig = plt.figure(figsize=(8, 6.5))
 ax = plt.subplot(1, 1, 1)
-
 i = 0
 for sequence_scheme in AVG_STEPS:
     for inference_scheme in AVG_STEPS[sequence_scheme]:
@@ -154,6 +168,7 @@ for sequence_scheme in AVG_STEPS:
         # ax.fill_between([DEGREE_HOST_MAPPING[x] for x in confidence_dicty.keys()], [x[0] for x in confidence_dicty.values()], [x[1] for x in confidence_dicty.values()], color=colors[i], alpha=0.2)
         
         confidence_dicty = np.array([x[1] for x in confidence_dicty.values()]) - np.array(list(dicty.values()))
+        # Very dumb hack: We wanted different marker sizes for the different markers based on their appearance.
         if i > 1:
             markersize = 14
         else:
@@ -187,9 +202,53 @@ ax.spines["right"].set(color="grey", alpha=0.3)
 plt.tight_layout()
 legend = plt.legend(fontsize="22", markerscale=0.7, handlelength=0.7, handletextpad=0.4, framealpha=0.3)
 
-plt.savefig("steps-" + TOPOLOGY_PREFIX + ".png")
+plt.savefig("figures/steps-" + TOPOLOGY_PREFIX + ".pdf")
+
+# Plot 1 specific code ends
+
+
+# Plot 2 specific code starts
+# DEVICES_PLOT_MAX_RANGE = 61 # for ft
+DEVICES_PLOT_MAX_RANGE = 11 # for Random Graphs
+
+fig = plt.figure(figsize=(8, 6.5))
+ax = plt.subplot(1, 1, 1)
+i = 0
+for sequence_scheme in AVG_DEVICE_SIZES:
+    for inference_scheme in AVG_DEVICE_SIZES[sequence_scheme]:
+        ax.plot(list(range(DEVICES_PLOT_MAX_RANGE)), AVG_DEVICE_SIZES[sequence_scheme][inference_scheme][:DEVICES_PLOT_MAX_RANGE], linewidth=3, color=colors[i], label = SEQUENCE_SCHEME_MAPPING[sequence_scheme] + INFERENCE_SCHEME_MAPPING[inference_scheme])
+        i += 1
+
+# ax.set_xlabel('Degree')
+ax.set_xlabel("N-th micro-change", alpha=0.5)
+ax.set_ylabel('# Equivalent devices', alpha = 0.5)
+
+# ax.set_xticks([0, 15, 30, 45, 60]) # For ft
+ax.set_xticks([0, 2, 4, 6, 8, 10]) # For rg
+# ax.set_yticklabels(["", 10, 20, 30, 40]) # For ft
+# ax.set_yticks([0, 10, 20, 30, 40]) # For ft
+
+ax.tick_params(axis="both", direction="in", labelcolor="grey", width=3, length=6)
+
+plt.ylim(bottom=0)
+# ax.set_xlim([100, 500]) # Number of switches
+ax.grid(color="gray", alpha=0.3)
+
+# Changing the color of the axis
+ax.spines["bottom"].set(color="grey", alpha=0.3)
+ax.spines["top"].set(color="grey", alpha=0.3)
+ax.spines["left"].set(color="grey", alpha=0.3)
+ax.spines["right"].set(color="grey", alpha=0.3)
+
+plt.tight_layout()
+legend = plt.legend(fontsize="22", markerscale=0.7, handlelength=0.7, handletextpad=0.4, framealpha=0.3)
+
+plt.savefig("figures/devices-" + TOPOLOGY_PREFIX + ".pdf")
+
+# Plot 2 specific code ends
 
 print("** Summary of results **")
+
 THINGS_TO_PRINT = [AVG_PRECISION, AVG_RECALL]
 THINGS_TO_PRINT_TITLES = ["Average precision", "Average recall"]
 PRINTY = []
