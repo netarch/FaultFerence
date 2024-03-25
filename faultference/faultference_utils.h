@@ -59,7 +59,7 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
                      string inference_mode, string topo_name);
 
 pair<MicroChange*, double>
-GetBestMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
+GetMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                    set<int> &equivalent_devices, set<set<int>> &eq_device_sets,
                    set<Link> &used_links, double min_start_time_ms,
                    double max_finish_time_ms, string sequence_mode,
@@ -82,13 +82,13 @@ set<Link> GetUsedLinks(LogData *data, int ntraces, double min_start_time_ms,
                        double max_finish_time_ms);
 
 /* Utility functions for link removal microchange */
-pair<Link, double>
+pair<RemoveLinkMc *, double>
 GetBestLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                     set<int> &equivalent_devices, set<set<int>> &eq_device_sets,
                     set<Link> &used_links, double min_start_time_ms,
                     double max_finish_time_ms, int nopenmp_threads);
 
-pair<Link, double>
+pair<RemoveLinkMc *, double>
 GetRandomLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                       set<int> &equivalent_devices,
                       set<set<int>> &eq_device_sets, set<Link> &used_links,
@@ -114,6 +114,15 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                      set<set<int>> &eq_device_sets, set<Link> &used_links,
                      double min_start_time_ms, double max_finish_time_ms,
                      int nopenmp_threads);
+
+
+pair<ActiveProbeMc*, double>
+GetRandomActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
+                     set<int> &equivalent_devices,
+                     set<set<int>> &eq_device_sets, set<Link> &used_links,
+                     double min_start_time_ms, double max_finish_time_ms,
+                     int nopenmp_threads);
+
 
 int EvaluateActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows,
                           int ntraces, set<int> &equivalent_devices,

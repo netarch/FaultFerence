@@ -613,7 +613,7 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
     double curr_score;
     while (1) {
         MicroChange *mc;
-        tie(mc, curr_score) = GetBestMicroChange(
+        tie(mc, curr_score) = GetMicroChange(
             data, dropped_flows, ntraces, eq_devices, eq_device_sets,
             used_links, min_start_time_ms, max_finish_time_ms, sequence_mode,
             nopenmp_threads);
@@ -634,36 +634,41 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
 }
 
 pair<MicroChange *, double>
-GetBestMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
+GetMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                    set<int> &eq_devices, set<set<int>> &eq_device_sets,
                    set<Link> &used_links, double min_start_time_ms,
                    double max_finish_time_ms, string sequence_mode,
                    int nopenmp_threads) {
+    pair<MicroChange *, double> result;
     if (USE_ACTIVE_PROBE_MC) {
-        assert(sequence_mode == "Intelligent");
-        pair<ActiveProbeMc *, double> res = GetBestActiveProbeMc(
+        if (sequence_mode == "Random"){
+            result = GetBestActiveProbeMc(
             data, dropped_flows, ntraces, eq_devices, eq_device_sets,
             used_links, min_start_time_ms, max_finish_time_ms, nopenmp_threads);
-        return res;
+        }
+        else if (sequence_mode == "Intelligent"){
+            result = GetRandomActiveProbeMc(
+            data, dropped_flows, ntraces, eq_devices, eq_device_sets,
+            used_links, min_start_time_ms, max_finish_time_ms, nopenmp_threads);
+        }
     } else {
         Link best_link_to_remove;
         double score;
         if (sequence_mode == "Random") {
-            tie(best_link_to_remove, score) = GetRandomLinkToRemove(
+            result = GetRandomLinkToRemove(
                 data, dropped_flows, ntraces, eq_devices, eq_device_sets,
                 used_links, min_start_time_ms, max_finish_time_ms,
                 nopenmp_threads);
         } else if (sequence_mode == "Intelligent") {
-            tie(best_link_to_remove, score) = GetBestLinkToRemove(
+            result = GetBestLinkToRemove(
                 data, dropped_flows, ntraces, eq_devices, eq_device_sets,
                 used_links, min_start_time_ms, max_finish_time_ms,
                 nopenmp_threads);
         } else {
             cout << "ERROR! ERROR! Somebody save me!" << endl;
         }
-        RemoveLinkMc *mc = new RemoveLinkMc(best_link_to_remove);
-        return pair<MicroChange *, double>(mc, score);
     }
+    return result;
 }
 
 Link GetMostUsedLink(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
@@ -910,7 +915,53 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
     return pair<ActiveProbeMc *, double>(amc, (double)max_pairs);
 }
 
-pair<Link, double>
+pair<ActiveProbeMc *, double>
+GetRandomActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
+                     set<int> &equivalent_devices,
+                     set<set<int>> &eq_device_sets, set<Link> &used_links,
+                     double min_start_time_ms, double max_finish_time_ms,
+                     int nopenmp_threads) {
+
+    set<PII> src_dst_pairs = ViableSrcDstForActiveProbe(
+        data, ntraces, min_start_time_ms, max_finish_time_ms);
+    int pairs = 0;
+    PII best_src_dst = PII(-1, -1);
+
+    if (src_dst_pairs.size() > 0) {
+        int random_idx = rand() % src_dst_pairs.size();
+        auto it = src_dst_pairs.begin();
+        for (int i = 0; i <= random_idx; i++){
+            it++;
+        }
+        best_src_dst = *it;
+        set<set<int>> eq_device_sets_copy = eq_device_sets;
+        pairs = EvaluateActiveProbeMc(
+            data, dropped_flows, ntraces, equivalent_devices, best_src_dst,
+            min_start_time_ms, max_finish_time_ms, eq_device_sets_copy);
+    }
+
+    // do again for the best mc to populate eq_device_sets
+    EvaluateActiveProbeMc(data, dropped_flows, ntraces, equivalent_devices,
+                          best_src_dst, min_start_time_ms, max_finish_time_ms,
+                          eq_device_sets);
+    int nprobes = 10;
+    auto [hsrc, hdst, srcport, dstport] =
+        SrcDstWithMaxDrops(data, dropped_flows, ntraces, min_start_time_ms,
+                           max_finish_time_ms, nopenmp_threads);
+    // if dst is dst_rack, might as well make it the dst host
+    if (!data[0].IsNodeSwitch(hdst) and
+        data[0].hosts_to_racks[hdst] == best_src_dst.second) {
+        best_src_dst.second = hdst;
+    }
+    cout << "best tuple " << best_src_dst << " " << hsrc << " " << hdst << " "
+         << srcport << " " << dstport << endl;
+    ActiveProbeMc *amc =
+        new ActiveProbeMc(best_src_dst.first, best_src_dst.second, srcport,
+                          dstport, nprobes, hsrc, hdst);
+    return pair<ActiveProbeMc *, double>(amc, (double)pairs);
+}
+
+pair<RemoveLinkMc *, double>
 GetBestLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                     set<int> &equivalent_devices, set<set<int>> &eq_device_sets,
                     set<Link> &used_links, double min_start_time_ms,
@@ -943,16 +994,21 @@ GetBestLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
     GetEqDeviceSetsMeasure(data, dropped_flows, ntraces, equivalent_devices,
                            best_link_to_remove, max_finish_time_ms,
                            eq_device_sets);
-    return pair<Link, double>(best_link_to_remove, (double)max_pairs);
+    RemoveLinkMc *mc = new RemoveLinkMc(best_link_to_remove);
+    return pair<RemoveLinkMc *, double>(mc, (double)max_pairs);
 }
 
-pair<Link, double>
+pair<RemoveLinkMc *, double>
 GetRandomLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                       set<int> &equivalent_devices,
                       set<set<int>> &eq_device_sets, set<Link> &used_links,
                       double min_start_time_ms, double max_finish_time_ms,
                       int nopenmp_threads) {
+    
     vector<pair<Link, int>> used_links_with_pairs;
+    Link random_link_to_remove = Link(-1, -1);
+    double pairs = 0;
+    
     for (Link link : used_links) {
         int link_id = data[0].links_to_ids[link];
         Link rlink = Link(link.second, link.first);
@@ -974,18 +1030,19 @@ GetRandomLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
             }
         }
     }
-    if (used_links_with_pairs.size() == 0) {
-        return pair<Link, double>(Link(-1, -1), 0);
-    }
-
-    auto [random_link_to_remove, pairs] =
+    if (used_links_with_pairs.size() > 0) {
+        tie(random_link_to_remove, pairs) =
         used_links_with_pairs[rand() % used_links_with_pairs.size()];
+    }
 
     // Do again for the random link to populate eq_device_sets
     GetEqDeviceSetsMeasure(data, dropped_flows, ntraces, equivalent_devices,
                            random_link_to_remove, max_finish_time_ms,
                            eq_device_sets);
-    return pair<Link, double>(random_link_to_remove, (double)pairs);
+    
+    RemoveLinkMc *mc = new RemoveLinkMc(random_link_to_remove);
+    return pair<RemoveLinkMc *, double>(mc, (double)pairs);
+
 }
 
 int GetExplanationEdgesAgg2(LogData *data, vector<Flow *> *dropped_flows,
