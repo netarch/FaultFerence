@@ -32,15 +32,36 @@ DEGREE_HOST_MAPPING = {
     20: 6000
 }
 
-SEQUENCE_SCHEME_MAPPING = {
-    "Intelligent": "FF.",
-    "Random": "Op."
-}
-
-INFERENCE_SCHEME_MAPPING = {
-    "Flock": " w/ Flock",
-    "Naive": " w/o Flock",
-    "Naive_old": " w/o Flock (old)"
+PLOT_MAPPING = {
+    "Intelligent": {
+        "Flock": {
+            "name": "FaultFerence",
+            "color": "#f1a200",
+            "marker": "o",
+            "markersize": 11
+        },
+        "Naive": {
+            "name": "FaultFerence w/o Flock",
+            "color": "#995ec3",
+            "marker": "s",
+            "markersize": 11
+        }
+        
+    },
+    "Random": {
+        "Flock": {
+            "name": "Operator w/ Flock",
+            "color": "#7fbf7b",
+            "marker": "^",
+            "markersize": 14
+        },
+        "Naive": {
+            "name": "Operator",
+            "color": "#cf4c32",
+            "marker": "v",
+            "markersize": 14
+        }
+    }
 }
 
 ALL_STEPS = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
@@ -147,12 +168,6 @@ for sequence_scheme in ALL_STEPS:
 fm.fontManager.addfont("./gillsans.ttf")
 matplotlib.rcParams.update({'font.size': 24, 'font.family': "GillSans"})
 
-# colors = ['#cc6600', '#330066', '#af0505', '#db850d', '#a5669f', '#028413', '#000000', '#0e326d']
-# colors = ['seagreen', 'brown', 'skyblue', 'black']
-colors = ["#f1a200", "#995ec3", "#7fbf7b", "#cf4c32", "seagreen", "black"]
-markers = ['o', 's', '^', 'v', 'p', '*', 'p', 'h']
-# linestyles = ["-", ":", "-.", "dotted"]
-
 # Plot 1 specific code starts
 fig = plt.figure(figsize=(8, 6.5))
 ax = plt.subplot(1, 1, 1)
@@ -168,12 +183,14 @@ for sequence_scheme in AVG_STEPS:
         # ax.fill_between([DEGREE_HOST_MAPPING[x] for x in confidence_dicty.keys()], [x[0] for x in confidence_dicty.values()], [x[1] for x in confidence_dicty.values()], color=colors[i], alpha=0.2)
         
         confidence_dicty = np.array([x[1] for x in confidence_dicty.values()]) - np.array(list(dicty.values()))
-        # Very dumb hack: We wanted different marker sizes for the different markers based on their appearance.
-        if i > 1:
-            markersize = 14
-        else:
-            markersize = 11
-        ax.errorbar([DEGREE_HOST_MAPPING[x] for x in dicty.keys()], dicty.values(), confidence_dicty.transpose(), color=colors[i], marker=markers[i], markersize=markersize, label = SEQUENCE_SCHEME_MAPPING[sequence_scheme] + INFERENCE_SCHEME_MAPPING[inference_scheme], capsize = 3, linewidth=3, elinewidth=0.9)
+
+        ################ If we only want to plot Operator and FaultFerence #############
+        # if inference_scheme == "Flock" and sequence_scheme == "Random":
+        #     continue
+        # if inference_scheme == "Naive" and sequence_scheme == "Intelligent":
+        #     continue
+        line_config = PLOT_MAPPING[sequence_scheme][inference_scheme]
+        ax.errorbar([DEGREE_HOST_MAPPING[x] for x in dicty.keys()], dicty.values(), confidence_dicty.transpose(), color=line_config["color"], marker=line_config["marker"], markersize=line_config["markersize"], label = line_config["name"], capsize = 3, linewidth=3, elinewidth=0.9)
         i +=1
 
 # ax.set_xlabel('Degree')
@@ -216,7 +233,7 @@ ax = plt.subplot(1, 1, 1)
 i = 0
 for sequence_scheme in AVG_DEVICE_SIZES:
     for inference_scheme in AVG_DEVICE_SIZES[sequence_scheme]:
-        ax.plot(list(range(DEVICES_PLOT_MAX_RANGE)), AVG_DEVICE_SIZES[sequence_scheme][inference_scheme][:DEVICES_PLOT_MAX_RANGE], linewidth=3, color=colors[i], label = SEQUENCE_SCHEME_MAPPING[sequence_scheme] + INFERENCE_SCHEME_MAPPING[inference_scheme])
+        ax.plot(list(range(DEVICES_PLOT_MAX_RANGE)), AVG_DEVICE_SIZES[sequence_scheme][inference_scheme][:DEVICES_PLOT_MAX_RANGE], linewidth=3, color=PLOT_MAPPING[sequence_scheme][inference_scheme]["color"], label = PLOT_MAPPING[sequence_scheme][inference_scheme]["name"])
         i += 1
 
 # ax.set_xlabel('Degree')
