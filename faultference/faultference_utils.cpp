@@ -640,32 +640,48 @@ GetMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                    double max_finish_time_ms, string sequence_mode,
                    int nopenmp_threads) {
     pair<MicroChange *, double> result;
-    if (USE_ACTIVE_PROBE_MC) {
-        if (sequence_mode == "Random"){
-            result = GetBestActiveProbeMc(
-            data, dropped_flows, ntraces, eq_devices, eq_device_sets,
+    pair<MicroChange *, double> result_ap, result_lr;
+    set<set<int>> eq_device_sets_ap = eq_device_sets;
+    set<set<int>> eq_device_sets_lr = eq_device_sets;
+    int TOTAL_OPTIONS = 2;
+    if (sequence_mode == "Intelligent"){
+        result_ap = GetBestActiveProbeMc(
+            data, dropped_flows, ntraces, eq_devices, eq_device_sets_ap,
             used_links, min_start_time_ms, max_finish_time_ms, nopenmp_threads);
+        
+        result_lr = GetBestLinkToRemove(
+            data, dropped_flows, ntraces, eq_devices, eq_device_sets_lr,
+            used_links, min_start_time_ms, max_finish_time_ms,
+            nopenmp_threads);
+        
+        cout << "AP score: " << result_ap.second << ",LR score: " << result_lr.second;
+        if (result_ap.second > result_lr.second){
+            result = result_ap;
+            eq_device_sets = eq_device_sets_ap;
         }
-        else if (sequence_mode == "Intelligent"){
-            result = GetRandomActiveProbeMc(
-            data, dropped_flows, ntraces, eq_devices, eq_device_sets,
+        else{
+            result = result_lr;
+            eq_device_sets = eq_device_sets_lr;
+        }
+
+    }
+    else if (sequence_mode == "Random"){
+        result_ap = GetRandomActiveProbeMc(
+            data, dropped_flows, ntraces, eq_devices, eq_device_sets_ap,
             used_links, min_start_time_ms, max_finish_time_ms, nopenmp_threads);
+        
+        result_lr = GetRandomLinkToRemove(
+            data, dropped_flows, ntraces, eq_devices, eq_device_sets_lr,
+            used_links, min_start_time_ms, max_finish_time_ms,
+            nopenmp_threads);
+        
+        if (rand() % 2){
+            result = result_ap;
+            eq_device_sets = eq_device_sets_ap;
         }
-    } else {
-        Link best_link_to_remove;
-        double score;
-        if (sequence_mode == "Random") {
-            result = GetRandomLinkToRemove(
-                data, dropped_flows, ntraces, eq_devices, eq_device_sets,
-                used_links, min_start_time_ms, max_finish_time_ms,
-                nopenmp_threads);
-        } else if (sequence_mode == "Intelligent") {
-            result = GetBestLinkToRemove(
-                data, dropped_flows, ntraces, eq_devices, eq_device_sets,
-                used_links, min_start_time_ms, max_finish_time_ms,
-                nopenmp_threads);
-        } else {
-            cout << "ERROR! ERROR! Somebody save me!" << endl;
+        else{
+            result = result_lr;
+            eq_device_sets = eq_device_sets_lr;
         }
     }
     return result;
