@@ -566,7 +566,7 @@ set<Link> GetUsedLinks(LogData *data, int ntraces, double min_start_time_ms,
 void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
                      double min_start_time_ms, double max_finish_time_ms,
                      int nopenmp_threads, string sequence_mode,
-                     string inference_mode, string topo_name) {
+                     string inference_mode, string minimize_mode, string topo_name) {
     int ntraces = in_topo_traces.size();
     vector<Flow *> dropped_flows[ntraces];
     LogData data[ntraces];
@@ -616,7 +616,7 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
         tie(mc, curr_score) = GetMicroChange(
             data, dropped_flows, ntraces, eq_devices, eq_device_sets,
             used_links, min_start_time_ms, max_finish_time_ms, sequence_mode,
-            nopenmp_threads);
+            minimize_mode, nopenmp_threads);
 
         if (curr_score - last_score < SCORE_THRESHOLD or curr_score < 1.0e-8)
             break;
@@ -638,7 +638,7 @@ GetMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                    set<int> &eq_devices, set<set<int>> &eq_device_sets,
                    set<Link> &used_links, double min_start_time_ms,
                    double max_finish_time_ms, string sequence_mode,
-                   int nopenmp_threads) {
+                   string minimize_mode, int nopenmp_threads) {
     pair<MicroChange *, double> result;
     pair<MicroChange *, double> result_ap, result_lr;
     set<set<int>> eq_device_sets_ap = eq_device_sets;
@@ -647,11 +647,11 @@ GetMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
     if (sequence_mode == "Intelligent"){
         result_ap = GetBestActiveProbeMc(
             data, dropped_flows, ntraces, eq_devices, eq_device_sets_ap,
-            used_links, min_start_time_ms, max_finish_time_ms, nopenmp_threads);
+            used_links, min_start_time_ms, max_finish_time_ms, minimize_mode, nopenmp_threads);
         
         result_lr = GetBestLinkToRemove(
             data, dropped_flows, ntraces, eq_devices, eq_device_sets_lr,
-            used_links, min_start_time_ms, max_finish_time_ms,
+            used_links, min_start_time_ms, max_finish_time_ms, minimize_mode,
             nopenmp_threads);
         
         cout << "AP score: " << result_ap.second << ",LR score: " << result_lr.second;
@@ -668,11 +668,11 @@ GetMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
     else if (sequence_mode == "Random"){
         result_ap = GetRandomActiveProbeMc(
             data, dropped_flows, ntraces, eq_devices, eq_device_sets_ap,
-            used_links, min_start_time_ms, max_finish_time_ms, nopenmp_threads);
+            used_links, min_start_time_ms, max_finish_time_ms, minimize_mode, nopenmp_threads);
         
         result_lr = GetRandomLinkToRemove(
             data, dropped_flows, ntraces, eq_devices, eq_device_sets_lr,
-            used_links, min_start_time_ms, max_finish_time_ms,
+            used_links, min_start_time_ms, max_finish_time_ms, minimize_mode,
             nopenmp_threads);
         
         if (rand() % 2){
@@ -890,7 +890,7 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                      set<int> &equivalent_devices,
                      set<set<int>> &eq_device_sets, set<Link> &used_links,
                      double min_start_time_ms, double max_finish_time_ms,
-                     int nopenmp_threads) {
+                     string minimize_mode, int nopenmp_threads) {
 
     set<PII> src_dst_pairs = ViableSrcDstForActiveProbe(
         data, ntraces, min_start_time_ms, max_finish_time_ms);
@@ -936,7 +936,7 @@ GetRandomActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces
                      set<int> &equivalent_devices,
                      set<set<int>> &eq_device_sets, set<Link> &used_links,
                      double min_start_time_ms, double max_finish_time_ms,
-                     int nopenmp_threads) {
+                     string minimize_mode, int nopenmp_threads) {
 
     set<PII> src_dst_pairs = ViableSrcDstForActiveProbe(
         data, ntraces, min_start_time_ms, max_finish_time_ms);
@@ -981,7 +981,7 @@ pair<RemoveLinkMc *, double>
 GetBestLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                     set<int> &equivalent_devices, set<set<int>> &eq_device_sets,
                     set<Link> &used_links, double min_start_time_ms,
-                    double max_finish_time_ms, int nopenmp_threads) {
+                    double max_finish_time_ms, string minimize_mode, int nopenmp_threads) {
     int max_pairs = 0;
     Link best_link_to_remove = Link(-1, -1);
     for (Link link : used_links) {
@@ -1019,7 +1019,7 @@ GetRandomLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                       set<int> &equivalent_devices,
                       set<set<int>> &eq_device_sets, set<Link> &used_links,
                       double min_start_time_ms, double max_finish_time_ms,
-                      int nopenmp_threads) {
+                      string minimize_mode, int nopenmp_threads) {
     
     vector<pair<Link, int>> used_links_with_pairs;
     Link random_link_to_remove = Link(-1, -1);

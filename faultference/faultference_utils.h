@@ -56,14 +56,14 @@ void GetColorCounts(map<int, int> &device_colors, map<int, int> &col_cnts);
 void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
                      double min_start_time_ms, double max_finish_time_ms,
                      int nopenmp_threads, string sequence_mode,
-                     string inference_mode, string topo_name);
+                     string inference_mode, string minimize_mode, string topo_name);
 
 pair<MicroChange*, double>
 GetMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                    set<int> &equivalent_devices, set<set<int>> &eq_device_sets,
                    set<Link> &used_links, double min_start_time_ms,
                    double max_finish_time_ms, string sequence_mode,
-                   int nopenmp_threads);
+                   string minimize_mode, int nopenmp_threads);
 
 void GetEqDeviceSets(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                      set<int> &equivalent_devices, Link removed_link,
@@ -86,14 +86,14 @@ pair<RemoveLinkMc *, double>
 GetBestLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                     set<int> &equivalent_devices, set<set<int>> &eq_device_sets,
                     set<Link> &used_links, double min_start_time_ms,
-                    double max_finish_time_ms, int nopenmp_threads);
+                    double max_finish_time_ms, string minimize_mode, int nopenmp_threads);
 
 pair<RemoveLinkMc *, double>
 GetRandomLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                       set<int> &equivalent_devices,
                       set<set<int>> &eq_device_sets, set<Link> &used_links,
                       double min_start_time_ms, double max_finish_time_ms,
-                      int nopenmp_threads);
+                      string minimize_mode, int nopenmp_threads);
 
 /** end of utility functions for link removal microchange **/
 
@@ -113,7 +113,7 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                      set<int> &equivalent_devices,
                      set<set<int>> &eq_device_sets, set<Link> &used_links,
                      double min_start_time_ms, double max_finish_time_ms,
-                     int nopenmp_threads);
+                     string minimize_mode, int nopenmp_threads);
 
 
 pair<ActiveProbeMc*, double>
@@ -121,7 +121,7 @@ GetRandomActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces
                      set<int> &equivalent_devices,
                      set<set<int>> &eq_device_sets, set<Link> &used_links,
                      double min_start_time_ms, double max_finish_time_ms,
-                     int nopenmp_threads);
+                     string minimize_mode, int nopenmp_threads);
 
 
 int EvaluateActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows,

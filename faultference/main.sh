@@ -1,9 +1,10 @@
 SECONDS=0
 sequence_mode=$1
 inference_mode=$2
-topoprefix=$3
-outfile_sim=$4
-logdir=$5
+minimize_mode=$3
+topoprefix=$4
+outfile_sim=$5
+logdir=$6
 
 topodir=./topologies/
 topofile=${topodir}/${topoprefix}.edgelist
@@ -42,7 +43,7 @@ fail_file=${outfile_sim}.fails
 # echo "Flow simulation done"
 
 > ${logdir}/input
-inputs=`echo "${sequence_mode} ${inference_mode} ${topo_name} ${fail_file} ${topofile} ${outfile_sim}"`
+inputs=`echo "${sequence_mode} ${inference_mode} ${minimize_mode} ${topo_name} ${fail_file} ${topofile} ${outfile_sim}"`
 
 iter=1
 num_steps=0

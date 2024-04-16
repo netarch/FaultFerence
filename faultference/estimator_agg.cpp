@@ -21,15 +21,16 @@ int main(int argc, char *argv[]) {
 
     string sequence_mode(argv[4]);
     string inference_mode(argv[5]);
-    string topo_name(argv[6]);
-    string fail_file(argv[7]);
+    string minimize_mode(argv[6]);
+    string topo_name(argv[7]);
+    string fail_file(argv[8]);
     cout << "Sequence mode is " << sequence_mode << endl;
     cout << "Inference mode is " << inference_mode << endl;
     cout << "Reading failures from " << fail_file << endl;
     auto failed_components = ReadFailuresBlackHole(fail_file);
 
     vector<pair<string, string>> in_topo_traces;
-    for (int ii = 8; ii < argc; ii += 2) {
+    for (int ii = 9; ii < argc; ii += 2) {
         string topo_file(argv[ii]);
         cout << "Adding topology file " << topo_file << endl;
         string trace_file(argv[ii + 1]);
@@ -47,6 +48,6 @@ int main(int argc, char *argv[]) {
     // OperatorScheme(in_topo_traces, min_start_time_ms, max_finish_time_ms,
     // nopenmp_threads);
     LocalizeFailure(in_topo_traces, min_start_time_ms, max_finish_time_ms,
-                    nopenmp_threads, sequence_mode, inference_mode, topo_name);
+                    nopenmp_threads, sequence_mode, inference_mode, minimize_mode, topo_name);
     return 0;
 }

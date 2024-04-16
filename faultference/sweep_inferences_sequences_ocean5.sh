@@ -7,8 +7,8 @@ sweep_logdir=sweep_logs/$(date +%Y-%m-%d-%H-%M-%S)
 mkdir -p ${sweep_logdir}
 
 # Parameters
-start_index=31
-iters=30
+start_index=1
+iters=1
 nfails=1
 
 iteration_function() {
@@ -32,10 +32,13 @@ iteration_function() {
         do
             for inference_mode in "Flock" "Naive"
             do
-                logdir=${topo_dir}/${sequence_mode}/${inference_mode}
-                mkdir -p ${logdir}
-                echo "*** Iteration" $i $sequence_mode $inference_mode $topo  >> ${logdir}/logs 2>&1
-                ./main.sh $sequence_mode $inference_mode $topo $outfile_sim $logdir >> ${logdir}/logs 2>&1
+                for minimize_mode in "Steps" "Cost" "Time"
+                do
+                    logdir=${topo_dir}/${sequence_mode}/${inference_mode}/${minimize_mode}
+                    mkdir -p ${logdir}
+                    echo "*** Iteration" $i $sequence_mode $inference_mode $topo $minimize_mode  >> ${logdir}/logs 2>&1
+                    ./main.sh $sequence_mode $inference_mode $minimize_mode $topo $outfile_sim $logdir >> ${logdir}/logs 2>&1
+                done
             done
         done
     done
