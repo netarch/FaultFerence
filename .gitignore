@@ -5,3 +5,4 @@
 calibration_logs/
 sweep_logs/
 *.a
+sparsehash/
