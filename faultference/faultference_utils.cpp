@@ -737,13 +737,12 @@ void BinFlowsByDeviceAgg(LogData *data, vector<Flow *> *dropped_flows,
 double get_normalized_score(MicroChange *m, double score, string minimize_mode){
     cout << "Minimize mode is " << minimize_mode << " score is " << score << endl;
     if (minimize_mode == "Cost"){
-        score /= m->cost;
+        score /= m->GetCost();
     }
     else if (minimize_mode == "Time"){
-        cout << "Hello Vipul how are you?" << endl;
         score /= m->GetTimeToDiagnose();
     }
-    cout << "New score is " << score << endl;
+    cout << "Normalized score is " << score << endl;
     return score;
 }
 
