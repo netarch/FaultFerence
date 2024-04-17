@@ -734,6 +734,19 @@ void BinFlowsByDeviceAgg(LogData *data, vector<Flow *> *dropped_flows,
     }
 }
 
+double get_normalized_score(MicroChange *m, double score, string minimize_mode){
+    cout << "Minimize mode is " << minimize_mode << " score is " << score << endl;
+    if (minimize_mode == "Cost"){
+        score /= m->cost;
+    }
+    else if (minimize_mode == "Time"){
+        cout << "Hello Vipul how are you?" << endl;
+        score /= m->GetTimeToDiagnose();
+    }
+    cout << "New score is " << score << endl;
+    return score;
+}
+
 void GetEqDevicesInFlowPaths(LogData &data, Flow *flow,
                              set<int> &equivalent_devices,
                              Hypothesis &removed_links,
@@ -928,7 +941,8 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
     ActiveProbeMc *amc =
         new ActiveProbeMc(best_src_dst.first, best_src_dst.second, srcport,
                           dstport, nprobes, hsrc, hdst);
-    return pair<ActiveProbeMc *, double>(amc, (double)max_pairs);
+    
+    return pair<ActiveProbeMc *, double>(amc, get_normalized_score(amc, (double)max_pairs, minimize_mode));
 }
 
 pair<ActiveProbeMc *, double>
@@ -974,7 +988,7 @@ GetRandomActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces
     ActiveProbeMc *amc =
         new ActiveProbeMc(best_src_dst.first, best_src_dst.second, srcport,
                           dstport, nprobes, hsrc, hdst);
-    return pair<ActiveProbeMc *, double>(amc, (double)pairs);
+    return pair<ActiveProbeMc *, double>(amc, get_normalized_score(amc, (double)pairs, minimize_mode));
 }
 
 pair<RemoveLinkMc *, double>
@@ -1011,7 +1025,7 @@ GetBestLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                            best_link_to_remove, max_finish_time_ms,
                            eq_device_sets);
     RemoveLinkMc *mc = new RemoveLinkMc(best_link_to_remove);
-    return pair<RemoveLinkMc *, double>(mc, (double)max_pairs);
+    return pair<RemoveLinkMc *, double>(mc, get_normalized_score(mc, (double)max_pairs, minimize_mode));
 }
 
 pair<RemoveLinkMc *, double>
@@ -1057,7 +1071,7 @@ GetRandomLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                            eq_device_sets);
     
     RemoveLinkMc *mc = new RemoveLinkMc(random_link_to_remove);
-    return pair<RemoveLinkMc *, double>(mc, (double)pairs);
+    return pair<RemoveLinkMc *, double>(mc, get_normalized_score(mc, (double)pairs, minimize_mode));
 
 }
 

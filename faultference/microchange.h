@@ -19,6 +19,8 @@ class MicroChange {
 
     MicroChange();
     virtual ostream &Print(ostream &os) { assert(false); };
+    virtual int GetTimeToDiagnose() { assert(false); };
+    virtual int GetCost() { assert(false); };
 };
 
 class RemoveLinkMc : public MicroChange {
@@ -34,6 +36,12 @@ class RemoveLinkMc : public MicroChange {
         os << remove_link;
         os << "]";
         return os;
+    }
+    int GetTimeToDiagnose(){
+        return time_to_diagnose;
+    }
+    int GetCost(){
+        return cost;
     }
 };
 
@@ -52,6 +60,12 @@ class ReplaceLinkMc : public MicroChange {
           os << "]";
           return os;
       } 
+      int GetTimeToDiagnose(){
+          return time_to_diagnose;
+      }
+      int GetCost(){
+          return cost;
+      }
 };
 
 
@@ -75,6 +89,13 @@ class ActiveProbeMc : public MicroChange {
         os << nprobes << " " << header_src << " " << header_dst;
         os << "]";
         return os;
+    }
+
+    int GetTimeToDiagnose(){
+        return time_to_diagnose;
+    }
+    int GetCost(){
+        return cost;
     }
 };
 
