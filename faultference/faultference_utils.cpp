@@ -300,6 +300,11 @@ set<int> LocalizeViaFlock(LogData *data, int ntraces, string fail_file,
     params["rg_deg18"] = {1.0 - 0.73, 3.0e-4, -10.0};
     params["rg_deg20"] = {1.0 - 0.73, 1.0e-6, -10.0};
 
+    params["ASN2k"] = {1.0 - 0.73, 1.0e-6, -10.0};
+    params["B4"] = {1.0 - 0.73, 1.0e-6, -10.0};
+    params["Kdl"] = {1.0 - 1.0e-1, 1.0e-6, -10.0};
+    params["UsCarrier"] = {1.0 - 0.73, 1.0e-6, -10.0};
+
     estimator.SetParams(params[topo_name]);
     PATH_KNOWN = false;
     TRACEROUTE_BAD_FLOWS = false;

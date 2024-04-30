@@ -79,7 +79,7 @@ do
         REMOVE_LINK)
             cat ${localization_logs}/iter_${iter} | grep "Best MicroChange" | grep "REMOVE_LINK" | sed 's/[^[0-9\.]\[*/ /g' | sed 's/[ ][ ]*/ /g' | awk '{print $1" "$2}' | head -n${max_changes} > ${micro_change_dir}/iter_${iter}
             while read p q; do
-                echo "$iter ($p $q)" >> ${logdir}/steps
+                echo "$iter. Remove link: ($p $q)" >> ${logdir}/steps
                 (( num_steps++ ))
                 echo "Removing link $p $q"
                 suffix=iter${iter}_r${p}_${q}
@@ -100,7 +100,7 @@ do
         "ACTIVE_PROBE")
             cat ${localization_logs}/iter_${iter} | grep "Best MicroChange" | grep "ACTIVE_PROBE" | sed 's/[^[0-9\.]\[*/ /g' | sed 's/[ ][ ]*/ /g' | awk '{print $1" "$2" "$3" "$4" "$5" "$6" "$7}' | head -n${max_changes} > ${micro_change_dir}/iter_${iter}
             while read src dst srcport dstport nprobes hsrc hdst; do
-                echo "$iter (${src} ${dst} ${srcport} ${dstport} ${nprobes} ${hsrc} ${hdst})" >> ${logdir}/steps
+                echo "$iter. Active Probe: src:${src} dst:${dst} srcport:${srcport} dstport:${dstport} nprobes:${nprobes} hsrc:${hsrc} hdst:${hdst}" >> ${logdir}/steps
                 suffix=iter${iter}_a${src}_${dst}_${nprobes}
                 apfile=${active_probe_dir}/${suffix}
                 echo "${src} ${dst} ${srcport} ${dstport} ${nprobes} ${hsrc} ${hdst}" > ${apfile}
