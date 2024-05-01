@@ -15,6 +15,7 @@ micro_change_dir=${logdir}/micro_changes
 plog_dir=${logdir}/plog_dir
 active_probe_dir=${logdir}/active_probe_dir
 topo_name=${topoprefix:0:8}
+eq_devices_file=${logdir}/equivalent_devices
 
 PYTHONHASHSEED=7
 
@@ -43,7 +44,7 @@ fail_file=${outfile_sim}.fails
 # echo "Flow simulation done"
 
 > ${logdir}/input
-inputs=`echo "${sequence_mode} ${inference_mode} ${minimize_mode} ${topo_name} ${fail_file} ${topofile} ${outfile_sim}"`
+inputs=`echo "${sequence_mode} ${inference_mode} ${minimize_mode} ${topo_name} ${eq_devices_file} ${fail_file} ${topofile} ${outfile_sim} None"`
 
 iter=1
 num_steps=0
@@ -72,8 +73,7 @@ do
 
     eq_devices=${new_eq_devices}
     eq_size=${new_eq_size}
-    echo "Iter: $iter, Size: ${new_eq_size}, Devices: ${new_eq_devices}" >> ${logdir}/equivalent_devices
-
+    echo "Iter: $iter, Size: ${new_eq_size}, Devices: ${new_eq_devices}" >> ${eq_devices_file}
     micro_change_happening=$(cat ${localization_logs}/iter_${iter} | grep "Best MicroChange" | cut -d " " -f 5)
     case $micro_change_happening in 
         REMOVE_LINK)
@@ -92,7 +92,7 @@ do
                     --outfile ${plog_dir}/${suffix} > ${flowsim_logs}/${suffix} \
                     --fails_from_file \
                     --fail_file ${fail_file}
-                inputs=`echo "${inputs} ${topofile_mod} ${plog_dir}/${suffix}"`
+                inputs=`echo "${inputs} ${topofile_mod} ${plog_dir}/${suffix} REMOVE_LINK"`
             done < "${micro_change_dir}/iter_${iter}"
 
 
@@ -114,7 +114,7 @@ do
                     --fails_from_file \
                     --fail_file ${fail_file} \
                     --active_probes_file ${apfile}
-                inputs=`echo "${inputs} ${topofile} ${plog_dir}/${suffix}"`
+                inputs=`echo "${inputs} ${topofile} ${plog_dir}/${suffix} ACTIVE_PROBE"`
             done < "${micro_change_dir}/iter_${iter}"
             ;;
         *)

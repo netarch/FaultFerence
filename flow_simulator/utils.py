@@ -10,6 +10,7 @@ import numpy as np
 import networkx as nx
 
 HOST_OFFSET = 10000
+K_SHORTEST = 1
 
 
 def TupleHash2(t):
@@ -514,15 +515,17 @@ class Topology(object):
             # print("src_rack", src_rack)
             all_pair_dists[src_sw] = src_dists
 
-        def GetPaths(src, dst):
+        def GetPaths(src, dst, k = 0):
+            assert (k >= 0)
             if src == dst:
                 return [[dst]]
             else:
                 ret = []
                 curr_dist = all_pair_dists[src][dst]
                 for nbr in self.G.neighbors(src):
-                    if nbr < HOST_OFFSET and all_pair_dists[nbr][dst] + 1 == curr_dist:
-                        nbr_paths = GetPaths(nbr, dst)
+                    if nbr < HOST_OFFSET and all_pair_dists[nbr][dst] + 1 <= curr_dist + k:
+                        slack_used = (all_pair_dists[nbr][dst] + 1) - curr_dist
+                        nbr_paths = GetPaths(nbr, dst, k - slack_used)
                         ret += [[src] + path for path in nbr_paths]
                 return ret
 
@@ -534,7 +537,7 @@ class Topology(object):
                 if src_sw == dst_sw:
                     src_paths[dst_sw] = [[]]
                 else:
-                    src_paths[dst_sw] = GetPaths(src_sw, dst_sw)
+                    src_paths[dst_sw] = GetPaths(src_sw, dst_sw, k = K_SHORTEST)
                 # print(src_rack, dst_rack, len(src_paths[dst_rack]), file=self.outfile)
             all_sw_pair_paths[src_sw] = src_paths
         return all_sw_pair_paths
@@ -584,7 +587,7 @@ class Topology(object):
         if len(args.duplicate_link) == 2:
             self.AddDuplicatePaths(all_rack_pair_paths, args.duplicate_link)
 
-        nflows_per_failed_pair = 5000
+        nflows_per_failed_pair = 500
         flows = self.GetFlowsBlackHole(nflows_per_failed_pair)
         active_probes = []
         if args.active_probes_file is not None:
@@ -637,7 +640,7 @@ class Topology(object):
             # print(src, dst, flowsize)
             # if (flow.src, flow.dst) in self.failed_src_dst_pairs:
             #    print("Failed pair", flow.src, flow.dst)
-            path_taken = flow.HashToPath(all_rack_pair_paths[src_rack][dst_rack], node_hash=True)
+            path_taken = flow.HashToPath(all_rack_pair_paths[src_rack][dst_rack], node_hash=False)
             # print(path_taken, src_rack, dst_rack)
             # first_link = (flow.src, src_rack)
             # last_link = (dst_rack, flow.dst)

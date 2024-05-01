@@ -26,6 +26,7 @@ void BinFlowsByDevice(LogData &data, double max_finish_time_ms,
 int GetExplanationEdgesFromMap(map<int, set<Flow *>> &flows_by_device);
 
 map<PII, pair<int, double>> ReadFailuresBlackHole(string fail_file);
+set<int> ReadEqDevices(string eq_devices_file);
 
 set<int> GetEquivalentDevices(map<int, set<Flow *>> &flows_by_device);
 
@@ -46,7 +47,7 @@ int IsProblemSolved(LogData *data, double max_finish_time_ms, const int min_path
 
 set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
                            double min_start_time_ms, double max_finish_time_ms,
-                           int nopenmp_threads, string topo_name);
+                           int nopenmp_threads, string topo_name, set<int> prev_eq_devices, string micro_change);
 
 void GetDeviceColors(set<int> &equivalent_devices, map<int, int> &device_colors,
                      set<set<int>> &eq_device_sets);
@@ -56,7 +57,7 @@ void GetColorCounts(map<int, int> &device_colors, map<int, int> &col_cnts);
 void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
                      double min_start_time_ms, double max_finish_time_ms,
                      int nopenmp_threads, string sequence_mode,
-                     string inference_mode, string minimize_mode, string topo_name);
+                     string inference_mode, string minimize_mode, string topo_name, set<int> prev_eq_devices, string micro_change);
 
 pair<MicroChange*, double>
 GetMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,

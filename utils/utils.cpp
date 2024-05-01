@@ -626,7 +626,7 @@ void GetDataFromLogFileParallel(string trace_file, string topology_file,
     const char *trace_file_c = trace_file.c_str();
     FILE *infile = fopen(trace_file.c_str(), "r");
     pthread_mutex_unlock(&mutex_getline);
-    size_t linec_size = 100;
+    size_t linec_size = 500;
     char *linec = new char[linec_size];
     char *restore_c = linec;
     size_t max_line_size = linec_size;

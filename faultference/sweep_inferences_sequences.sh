@@ -8,13 +8,13 @@ mkdir -p ${sweep_logdir}
 
 # Parameters
 start_index=1
-iters=1
+iters=10
 nfails=1
 
 iteration_function() {
     i=$1
 
-    for topo in "ft_deg10_sw125_svr250_os3_bidir_false" "ft_deg12_sw180_svr432_os3_bidir_false" "ft_deg14_sw245_svr686_os3_bidir_false" "ft_deg16_sw320_svr1024_os3_bidir_false" "rg_deg10_sw125_svr250_os3" "rg_deg12_sw180_svr432_os3" "rg_deg14_sw245_svr686_os3" "rg_deg16_sw320_svr1024_os3"
+    for topo in "B4" "Kdl" #"ASN2k" "UsCarrier"
     do
         topo_dir=${sweep_logdir}/${topo}/${i}
         mkdir -p ${topo_dir}
@@ -32,7 +32,7 @@ iteration_function() {
         do
             for inference_mode in "Flock" "Naive"
             do
-                for minimize_mode in "Steps" "Cost" "Time" 
+                for minimize_mode in "Steps" #"Cost" "Time" 
                 do
                     logdir=${topo_dir}/${sequence_mode}/${inference_mode}/${minimize_mode}
                     mkdir -p ${logdir}

@@ -1,13 +1,13 @@
 nfails=1
 nthreads=8
-maxiter=20
+maxiter=30
 
 make -s clean; make -s -j8
 seqnum=$(date +%Y-%m-%d-%H-%M-%S)
 
 topodir=topologies
 
-for topoprefix in "ft_deg16_sw320_svr1024_os3_bidir_false" "ft_deg18_sw405_svr1458_os3_bidir_false" "ft_deg20_sw500_svr2000_os3_bidir_false"
+for topoprefix in "B4" "Kdl" "UsCarrier"
 do
     logdir=calibration_logs/${topoprefix}/${seqnum}
     mkdir -p ${logdir}

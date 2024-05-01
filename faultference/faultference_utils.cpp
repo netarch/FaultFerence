@@ -302,7 +302,7 @@ set<int> LocalizeViaFlock(LogData *data, int ntraces, string fail_file,
 
     params["ASN2k"] = {1.0 - 0.73, 1.0e-6, -10.0};
     params["B4"] = {1.0 - 0.73, 1.0e-6, -10.0};
-    params["Kdl"] = {1.0 - 1.0e-1, 1.0e-6, -10.0};
+    params["Kdl"] = {1.0 - 0.65, 1.0e-6, -10.0};
     params["UsCarrier"] = {1.0 - 0.73, 1.0e-6, -10.0};
 
     estimator.SetParams(params[topo_name]);
@@ -357,41 +357,56 @@ set<vector<Link>> GetSetOfActualPath(LogData data, double max_finish_time_ms) {
 
 set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
                            double min_start_time_ms, double max_finish_time_ms,
-                           int nopenmp_threads, string topo_name) {
+                           int nopenmp_threads, string topo_name, set<int> prev_eq_devices, string micro_change) {
 
     set<int> localized_devices, new_localized_devices;
+    cout << "New change offered: " << micro_change << ", Prev devices: " << prev_eq_devices << endl;
 
     map<Flow *, map<int, int>> path_per_link_per_flow;
-    map<Flow *, int> min_path_per_link_per_flow;
     int min_path_per_link = 1000;
-    for (Flow *flow : data[0].flows) {
-        vector<Path *> *flow_paths = flow->GetPaths(max_finish_time_ms);
-        for (Path *path : *flow_paths) {
-            for (int link_id : *path) {
-                Link link = data[0].inverse_links[link_id];
-                if (link.first == link.second) {
-                    localized_devices.insert(link.first);
-                }
-                path_per_link_per_flow[flow].emplace(link_id, 0);
-                path_per_link_per_flow[flow][link_id] += 1;
-            }
-        }
-        for (auto it = path_per_link_per_flow[flow].begin();
-             it != path_per_link_per_flow[flow].end(); ++it) {
-            if (it->second <= min_path_per_link) {
-                min_path_per_link = it->second;
-            }
-        }
-    }
 
-    for (int ii = 1; ii < ntraces; ii++) {
-        set<int> new_localized_devices;
-        set<int> temp_devices;
-        for (Flow *flow : data[ii].flows) {
+    if (prev_eq_devices.find(-1) != prev_eq_devices.end()){
+        for (Flow *flow : data[0].flows) {
             vector<Path *> *flow_paths = flow->GetPaths(max_finish_time_ms);
             for (Path *path : *flow_paths) {
                 for (int link_id : *path) {
-                    Link link = data[ii].inverse_links[link_id];
+                    Link link = data[0].inverse_links[link_id];
+                    if (link.first == link.second) {
+                        localized_devices.insert(link.first);
+                    }
+                }
+            }
+        }
+        return localized_devices;
+    }
+    else{
+        localized_devices = prev_eq_devices;
+    }
+
+    if (micro_change == "REMOVE_LINK"){
+        // calculate the min_path_per_link
+        for (Flow *flow : data[0].flows) {
+            vector<Path *> *flow_paths = flow->GetPaths(max_finish_time_ms);
+            for (Path *path : *flow_paths) {
+                for (int link_id : *path) {
+                    path_per_link_per_flow[flow].emplace(link_id, 0);
+                    path_per_link_per_flow[flow][link_id] += 1;
+                }
+            }
+            for (auto it = path_per_link_per_flow[flow].begin();
+                it != path_per_link_per_flow[flow].end(); ++it) {
+                if (it->second <= min_path_per_link) {
+                    min_path_per_link = it->second;
+                }
+            }
+        }
+
+        set<int> temp_devices;
+        for (Flow *flow : data[ntraces - 1].flows) {
+            vector<Path *> *flow_paths = flow->GetPaths(max_finish_time_ms);
+            for (Path *path : *flow_paths) {
+                for (int link_id : *path) {
+                    Link link = data[ntraces - 1].inverse_links[link_id];
                     if (link.first == link.second) {
                         new_localized_devices.insert(link.first);
                     }
@@ -399,29 +414,61 @@ set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
             }
         }
 
-        cout << "Localized paths in iter " << ii << ": " << localized_devices
-             << endl;
+        cout << "Localized paths in iter " << ntraces - 1 << ": " << localized_devices
+                << endl;
         cout << "Count " << localized_devices.size() << endl;
 
-        cout << "New localized paths in iter " << ii << ": "
-             << new_localized_devices << endl;
+        cout << "New localized paths in iter " << ntraces - 1 << ": "
+                << new_localized_devices << endl;
         cout << "Count " << new_localized_devices.size() << endl;
 
-        if (IsProblemSolved(&(data[ii]), max_finish_time_ms,
+        if (IsProblemSolved(&(data[ntraces - 1]), max_finish_time_ms,
                             min_path_per_link) == 1) {
             cout << "Problem was solved" << endl;
             set_difference(localized_devices.begin(), localized_devices.end(),
-                           new_localized_devices.begin(),
-                           new_localized_devices.end(),
-                           std::inserter(temp_devices, temp_devices.begin()));
+                            new_localized_devices.begin(),
+                            new_localized_devices.end(),
+                            std::inserter(temp_devices, temp_devices.begin()));
         } else {
             cout << "Problem was not solved" << endl;
             set_intersection(localized_devices.begin(), localized_devices.end(),
-                             new_localized_devices.begin(),
-                             new_localized_devices.end(),
-                             std::inserter(temp_devices, temp_devices.begin()));
+                                new_localized_devices.begin(),
+                                new_localized_devices.end(),
+                                std::inserter(temp_devices, temp_devices.begin()));
         }
 
+        localized_devices = temp_devices;
+    }
+    else if (micro_change == "ACTIVE_PROBE"){
+        set<int> temp_devices;
+        int probes_sent = 0, probes_lost = 0;
+        for (Flow *flow : data[ntraces - 1].flows) {
+            if (flow->IsFlowActive()) {
+                vector<Path *> *flow_paths = flow->GetPaths(max_finish_time_ms);
+                for (Path *path : *flow_paths) {
+                    for (int link_id : *path) {
+                        Link link = data[ntraces - 1].inverse_links[link_id];
+                        if (link.first == link.second) {
+                            new_localized_devices.insert(link.first);
+                        }
+                    }
+                }
+                probes_sent += flow->snapshots[0]->packets_sent;
+                probes_lost += flow->snapshots[0]->packets_lost;
+            }
+        }
+        if (probes_lost == probes_sent){
+            set_intersection(localized_devices.begin(), localized_devices.end(),
+                        new_localized_devices.begin(),
+                        new_localized_devices.end(),
+                        std::inserter(temp_devices, temp_devices.begin()));
+        }
+        else{
+            set_difference(localized_devices.begin(), localized_devices.end(),
+                    new_localized_devices.begin(),
+                    new_localized_devices.end(),
+                    std::inserter(temp_devices, temp_devices.begin()));
+        }
         localized_devices = temp_devices;
     }
 
@@ -571,7 +618,7 @@ set<Link> GetUsedLinks(LogData *data, int ntraces, double min_start_time_ms,
 void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
                      double min_start_time_ms, double max_finish_time_ms,
                      int nopenmp_threads, string sequence_mode,
-                     string inference_mode, string minimize_mode, string topo_name) {
+                     string inference_mode, string minimize_mode, string topo_name, set<int> prev_eq_devices, string micro_change) {
     int ntraces = in_topo_traces.size();
     vector<Flow *> dropped_flows[ntraces];
     LogData data[ntraces];
@@ -598,7 +645,7 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
     } else if (inference_mode == "Naive") {
         eq_devices =
             LocalizeViaNobody(data, ntraces, fail_file, min_start_time_ms,
-                              max_finish_time_ms, nopenmp_threads, topo_name);
+                              max_finish_time_ms, nopenmp_threads, topo_name, prev_eq_devices, micro_change);
     } else {
         cout << "ERROR! ERROR! Somebody save me!" << endl;
     }
@@ -958,16 +1005,33 @@ GetRandomActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces
 
     set<PII> src_dst_pairs = ViableSrcDstForActiveProbe(
         data, ntraces, min_start_time_ms, max_finish_time_ms);
+    set<PII> src_dst_pairs_non_zero;
     int pairs = 0;
     PII best_src_dst = PII(-1, -1);
 
-    if (src_dst_pairs.size() > 0) {
-        int random_idx = rand() % src_dst_pairs.size();
-        auto it = src_dst_pairs.begin();
-        for (int i = 0; i <= random_idx; i++){
+    for (PII src_dst : src_dst_pairs) {
+        set<set<int>> eq_device_sets_copy = eq_device_sets;
+        int pairs = EvaluateActiveProbeMc(
+            data, dropped_flows, ntraces, equivalent_devices, src_dst,
+            min_start_time_ms, max_finish_time_ms, eq_device_sets_copy);
+        cout << "src dst pairs: (" << src_dst.first << ", " << src_dst.second << ") score: " << pairs << endl;
+        if (pairs > 0) {
+            src_dst_pairs_non_zero.insert(src_dst);
+        }
+    }
+
+    cout << "Viable src dst pairs: " << src_dst_pairs.size() << " " << src_dst_pairs_non_zero.size() << " Non-zero scores: " << src_dst_pairs_non_zero.size() << endl;
+    cout << "non zero pairs " << src_dst_pairs_non_zero << endl;
+
+    if (src_dst_pairs_non_zero.size() > 0) {
+        int random_idx = rand() % src_dst_pairs_non_zero.size();
+        auto it = src_dst_pairs_non_zero.begin();
+        cout << "random idx " << random_idx << endl;
+        for (int i = 0; i < random_idx; i++){
             it++;
         }
         best_src_dst = *it;
+        cout << "Best src dst loop 1 " << best_src_dst << endl;
         set<set<int>> eq_device_sets_copy = eq_device_sets;
         pairs = EvaluateActiveProbeMc(
             data, dropped_flows, ntraces, equivalent_devices, best_src_dst,
@@ -987,7 +1051,7 @@ GetRandomActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces
         data[0].hosts_to_racks[hdst] == best_src_dst.second) {
         best_src_dst.second = hdst;
     }
-    cout << "best tuple " << best_src_dst << " " << hsrc << " " << hdst << " "
+    cout << "GetRandomActiveProbeMc: best tuple " << best_src_dst << " " << hsrc << " " << hdst << " "
          << srcport << " " << dstport << endl;
     ActiveProbeMc *amc =
         new ActiveProbeMc(best_src_dst.first, best_src_dst.second, srcport,
@@ -1128,4 +1192,44 @@ map<PII, pair<int, double>> ReadFailuresBlackHole(string fail_file) {
              << " seconds, numfails " << fails.size() << endl;
     }
     return fails;
+}
+
+
+set<int> ReadEqDevices(string eq_devices_file){
+    ifstream eq_file(eq_devices_file);
+    string line, lastline;
+    set<int> devices;
+
+    if (!eq_file.is_open()){
+        // File is possible empty - likely that we don't have info on eq devices yet.
+        devices.insert(-1);
+        return devices;
+    }
+
+    while(getline(eq_file, line)) {
+        lastline = line;
+    }
+    eq_file.close();
+
+    if (lastline.empty()){
+        // File is possible empty - likely that we don't have info on eq devices yet.
+        devices.insert(-1);
+        return devices;
+    }
+    else{
+        // 
+        stringstream ss(lastline);
+        string temp;
+        int num;
+
+        getline(ss, temp, '[');
+
+        while(ss >> num) {
+            devices.insert(num);
+            if (ss.peek() == ','){
+                ss.ignore();
+            }
+        }
+        return devices;
+    }
 }
