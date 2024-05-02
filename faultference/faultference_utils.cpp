@@ -300,10 +300,11 @@ set<int> LocalizeViaFlock(LogData *data, int ntraces, string fail_file,
     params["rg_deg18"] = {1.0 - 0.73, 3.0e-4, -10.0};
     params["rg_deg20"] = {1.0 - 0.73, 1.0e-6, -10.0};
 
-    params["ASN2k"] = {1.0 - 0.73, 1.0e-6, -10.0};
+    params["ASN2k"] = {1.0 - 0.81, 1.0e-6, -10.0};
     params["B4"] = {1.0 - 0.73, 1.0e-6, -10.0};
-    params["Kdl"] = {1.0 - 0.65, 1.0e-6, -10.0};
-    params["UsCarrier"] = {1.0 - 0.73, 1.0e-6, -10.0};
+    params["Kdl"] = {1.0 - 0.89, 1.0e-6, -10.0};
+    params["UsC"] = {1.0 - 0.81, 1.0e-6, -10.0};
+
 
     estimator.SetParams(params[topo_name]);
     PATH_KNOWN = false;
@@ -727,11 +728,14 @@ GetMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
             used_links, min_start_time_ms, max_finish_time_ms, minimize_mode,
             nopenmp_threads);
         
-        if (rand() % 2){
+        cout << "AP score: " << result_ap.second << ",LR score: " << result_lr.second;
+        if ((rand() % 2 && result_ap.second > 0) || result_lr.second == 0){
+            cout << "AP was chosen" << endl;
             result = result_ap;
             eq_device_sets = eq_device_sets_ap;
         }
         else{
+            cout << "LR was chosen" << endl;
             result = result_lr;
             eq_device_sets = eq_device_sets_lr;
         }

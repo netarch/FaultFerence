@@ -10,7 +10,7 @@ import numpy as np
 import networkx as nx
 
 HOST_OFFSET = 10000
-K_SHORTEST = 1
+K_SHORTEST = 0
 
 
 def TupleHash2(t):
@@ -640,7 +640,7 @@ class Topology(object):
             # print(src, dst, flowsize)
             # if (flow.src, flow.dst) in self.failed_src_dst_pairs:
             #    print("Failed pair", flow.src, flow.dst)
-            path_taken = flow.HashToPath(all_rack_pair_paths[src_rack][dst_rack], node_hash=False)
+            path_taken = flow.HashToPath(all_rack_pair_paths[src_rack][dst_rack], node_hash=True)
             # print(path_taken, src_rack, dst_rack)
             # first_link = (flow.src, src_rack)
             # last_link = (dst_rack, flow.dst)

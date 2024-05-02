@@ -7,7 +7,7 @@ seqnum=$(date +%Y-%m-%d-%H-%M-%S)
 
 topodir=topologies
 
-for topoprefix in "B4" "Kdl" "UsCarrier"
+for topoprefix in "B4" "Kdl" "UsC" "ASN2k"
 do
     logdir=calibration_logs/${topoprefix}/${seqnum}
     mkdir -p ${logdir}
@@ -32,6 +32,10 @@ do
 
         inputs=`echo "${inputs} ${topofile} ${tracefile}"`
         (( iter++ ))
+
+        if [[ $(($iter%30)) -eq 0 ]]; then
+            wait
+        fi
     done
     wait
     echo "Flow simulations done"
