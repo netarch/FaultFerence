@@ -11,7 +11,7 @@ import matplotlib.font_manager as fm
 
 log_path = sys.argv[1]
 START_INDEX = 1
-ITERATIONS = 100
+ITERATIONS = 200
 MAX_NUM_STEPS = 250 # This is useful while calculating the average equivalent device size per step
 TOPOLOGIES = ["B4", "Kdl", "UsC" , "ASN2k"]
 
@@ -217,6 +217,7 @@ plt.tight_layout()
 legend = plt.legend(fontsize="22", markerscale=0.7, handlelength=0.7, handletextpad=0.4, framealpha=0.3)
 
 plt.savefig("figures/steps-WAN.png")
+plt.savefig("figures/steps-WAN.pdf")
 
 # Plot 1 specific code ends
 
