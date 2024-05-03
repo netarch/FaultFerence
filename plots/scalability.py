@@ -18,9 +18,9 @@ def GetTimeValue(file_path):
 
 log_path = sys.argv[1]
 START_INDEX = 1
-ITERATIONS = 200
+ITERATIONS = 2
 MAX_NUM_STEPS = 250 # This is useful while calculating the average equivalent device size per step
-TOPOLOGY_PREFIX = "rg"
+TOPOLOGY_PREFIX = "ft"
 DEGREE_SWITCH_MAPPING = {
     10: 125,
     12: 180,
@@ -112,19 +112,19 @@ for topology in os.listdir(log_path):
                     print("WARNING:", topo_degree, iter_string, inference_scheme, sequence_scheme, "- some iterations were killed in this run")
                     continue
                 num_steps = int(open(os.path.join(inference_path, "num_steps")).read())
-                all_times = [GetTimeValue(os.path.join(inference_path, "localization", "iter_" + stepy)) for stepy in num_steps]
-                ALL_TIMES[topo_degree][inference_scheme][iter_index].append(all_times)
+                all_times = [GetTimeValue(os.path.join(inference_path, "localization", "iter_" + str(stepy))) for stepy in range(1, num_steps + 1)]
+                ALL_TIMES[topo_degree][inference_scheme][iter_index] = all_times
 
-                for stepy in num_steps:
-                    if topo_degree == 20:
+                for stepy in range(num_steps):
+                    if topo_degree == 10:
                         ALL_TIMES_STEP[inference_scheme][stepy].append(all_times[stepy])
 
 for topo_degree in ALL_TIMES:
     for inference_scheme in ALL_TIMES[topo_degree]:
-        TEMPEST = [x for xs in ALL_TIMES[topo_degree][inference_scheme] for x in xs]
+        TEMPEST = [x for xs in list(ALL_TIMES[topo_degree][inference_scheme].values()) for x in xs]
         AVG_TIMES_DEGREE[inference_scheme][topo_degree] = np.mean(TEMPEST)
         CONFIDENCE_DEGREE[inference_scheme][topo_degree] = st.norm.interval(confidence=0.90, loc=np.mean(TEMPEST), scale=st.sem(TEMPEST))
-
+        
 for inference_scheme in ALL_TIMES_STEP:
     for steps in ALL_TIMES_STEP[inference_scheme]:
         TEMPEST = ALL_TIMES_STEP[inference_scheme][steps]
@@ -149,7 +149,7 @@ for inference_scheme in AVG_TIMES_DEGREE:
         
         confidence_dicty = np.array([x[1] for x in confidence_dicty.values()]) - np.array(list(dicty.values()))
 
-        line_config = PLOT_MAPPING[sequence_scheme][inference_scheme]
+        line_config = PLOT_MAPPING["Intelligent"][inference_scheme]
         ax.errorbar([DEGREE_HOST_MAPPING[x] for x in dicty.keys()], dicty.values(), confidence_dicty.transpose(), color=line_config["color"], marker=line_config["marker"], markersize=line_config["markersize"], label = line_config["name"], capsize = 3, linewidth=3, elinewidth=0.9)
         i +=1
 
@@ -179,7 +179,7 @@ ax.spines["right"].set(color="grey", alpha=0.3)
 plt.tight_layout()
 legend = plt.legend(fontsize="22", markerscale=0.7, handlelength=0.7, handletextpad=0.4, framealpha=0.3)
 
-plt.savefig("figures/time-" + TOPOLOGY_PREFIX + ".pdf")
+plt.savefig("figures/time-" + TOPOLOGY_PREFIX + ".png")
 
 # Plot 1 specific code ends
 
@@ -192,7 +192,9 @@ fig = plt.figure(figsize=(8, 6.5))
 ax = plt.subplot(1, 1, 1)
 i = 0
 for inference_scheme in AVG_TIMES_STEP:
-    ax.plot(list(range(DEVICES_PLOT_MAX_RANGE)), AVG_TIMES_STEP[inference_scheme][:DEVICES_PLOT_MAX_RANGE], linewidth=3, color=PLOT_MAPPING[sequence_scheme][inference_scheme]["color"], label = PLOT_MAPPING[sequence_scheme][inference_scheme]["name"])
+    TEMPEST = list(OrderedDict(sorted(AVG_TIMES_STEP[inference_scheme].items())).values())
+    print(TEMPEST)
+    ax.plot(list(range(len(TEMPEST)))[:DEVICES_PLOT_MAX_RANGE], TEMPEST[:DEVICES_PLOT_MAX_RANGE], linewidth=3, color=PLOT_MAPPING[sequence_scheme][inference_scheme]["color"], label = PLOT_MAPPING[sequence_scheme][inference_scheme]["name"])
     i += 1
 
 # ax.set_xlabel('Degree')
@@ -219,7 +221,7 @@ ax.spines["right"].set(color="grey", alpha=0.3)
 plt.tight_layout()
 legend = plt.legend(fontsize="22", markerscale=0.7, handlelength=0.7, handletextpad=0.4, framealpha=0.3)
 
-plt.savefig("figures/step-time-" + TOPOLOGY_PREFIX + ".pdf")
+plt.savefig("figures/step-time-" + TOPOLOGY_PREFIX + ".png")
 
 # Plot 2 specific code ends
 
@@ -231,14 +233,13 @@ PRINTY = []
 
 for index, THING_TO_PRINT in enumerate(THINGS_TO_PRINT):
     PRINTY = []
-    for sequence_scheme in THING_TO_PRINT:
-        for inference_scheme in THING_TO_PRINT[sequence_scheme]:
-            for topo_degree in THING_TO_PRINT[sequence_scheme][inference_scheme]:
-                all_steps = THING_TO_PRINT[sequence_scheme][inference_scheme][topo_degree]
-                stringy = str(topo_degree) + " " + sequence_scheme + " " + inference_scheme + " " + str(all_steps)
-                PRINTY.append(stringy)
+    for inference_scheme in THING_TO_PRINT:
+        for topo_degree in THING_TO_PRINT[inference_scheme]:
+            all_steps = THING_TO_PRINT[inference_scheme][topo_degree]
+            stringy = str(topo_degree) + " " + inference_scheme + " " + str(all_steps)
+            PRINTY.append(stringy)
     
-    print(THINGS_TO_PRINT_TITLES[index])
+    print("\n" + THINGS_TO_PRINT_TITLES[index])
     PRINTY.sort()
     for line in PRINTY:
         print(line)
