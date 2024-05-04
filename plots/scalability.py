@@ -13,12 +13,12 @@ def GetTimeValue(file_path):
     lines = open(file_path).readlines()
     for line in lines:
         if "Time taken:" in line:
-            return int(line.lstrip("Time taken: "))/100
+            return int(line.lstrip("Time taken: "))/(1000 * 1000)
     assert(False)
 
 log_path = sys.argv[1]
 START_INDEX = 1
-ITERATIONS = 2
+ITERATIONS = 20
 MAX_NUM_STEPS = 250 # This is useful while calculating the average equivalent device size per step
 TOPOLOGY_PREFIX = "ft"
 DEGREE_SWITCH_MAPPING = {
@@ -42,13 +42,13 @@ DEGREE_HOST_MAPPING = {
 PLOT_MAPPING = {
     "Intelligent": {
         "Flock": {
-            "name": "FaultFerence",
+            "name": "FaultFerence (Bayesian)",
             "color": "#f1a200",
             "marker": "o",
             "markersize": 11
         },
         "Naive": {
-            "name": "FaultFerence w/o Flock",
+            "name": "FaultFerence (Basic)",
             "color": "#995ec3",
             "marker": "s",
             "markersize": 11
@@ -116,12 +116,12 @@ for topology in os.listdir(log_path):
                 ALL_TIMES[topo_degree][inference_scheme][iter_index] = all_times
 
                 for stepy in range(num_steps):
-                    if topo_degree == 10:
+                    if topo_degree == 18:
                         ALL_TIMES_STEP[inference_scheme][stepy].append(all_times[stepy])
-
+print(ALL_TIMES)
 for topo_degree in ALL_TIMES:
     for inference_scheme in ALL_TIMES[topo_degree]:
-        TEMPEST = [x for xs in list(ALL_TIMES[topo_degree][inference_scheme].values()) for x in xs]
+        TEMPEST = [sum(x) for x in list(ALL_TIMES[topo_degree][inference_scheme].values())]
         AVG_TIMES_DEGREE[inference_scheme][topo_degree] = np.mean(TEMPEST)
         CONFIDENCE_DEGREE[inference_scheme][topo_degree] = st.norm.interval(confidence=0.90, loc=np.mean(TEMPEST), scale=st.sem(TEMPEST))
         
@@ -154,8 +154,8 @@ for inference_scheme in AVG_TIMES_DEGREE:
         i +=1
 
 # ax.set_xlabel('Degree')
-ax.set_xlabel("Topology size (# hosts)", alpha=0.5)
-ax.set_ylabel('Runtime (ms)', alpha = 0.5)
+ax.set_xlabel("Topology size (# hosts)")
+ax.set_ylabel('Total time (s)')
 
 # ax.set_xticks([10, 12, 14, 16, 18, 20]) # Topology degree
 # ax.set_xticks([100, 200, 300, 400, 500]) # Number of switches
@@ -180,6 +180,7 @@ plt.tight_layout()
 legend = plt.legend(fontsize="22", markerscale=0.7, handlelength=0.7, handletextpad=0.4, framealpha=0.3)
 
 plt.savefig("figures/time-" + TOPOLOGY_PREFIX + ".png")
+plt.savefig("figures/time-" + TOPOLOGY_PREFIX + ".pdf")
 
 # Plot 1 specific code ends
 
@@ -192,14 +193,19 @@ fig = plt.figure(figsize=(8, 6.5))
 ax = plt.subplot(1, 1, 1)
 i = 0
 for inference_scheme in AVG_TIMES_STEP:
-    TEMPEST = list(OrderedDict(sorted(AVG_TIMES_STEP[inference_scheme].items())).values())
-    print(TEMPEST)
-    ax.plot(list(range(len(TEMPEST)))[:DEVICES_PLOT_MAX_RANGE], TEMPEST[:DEVICES_PLOT_MAX_RANGE], linewidth=3, color=PLOT_MAPPING[sequence_scheme][inference_scheme]["color"], label = PLOT_MAPPING[sequence_scheme][inference_scheme]["name"])
+    TEMPEST = list(OrderedDict(sorted(AVG_TIMES_STEP[inference_scheme].items())).values())[:DEVICES_PLOT_MAX_RANGE]
+    confidence_dicty = list(OrderedDict(sorted(CONFIDENCE_STEP[inference_scheme].items())).values())[:DEVICES_PLOT_MAX_RANGE]
+    confidence_upper = np.array([x[1] for x in confidence_dicty])
+    confidence_lower = np.array([x[0] for x in confidence_dicty])
+    
+    line_config = PLOT_MAPPING["Intelligent"][inference_scheme]
+    ax.plot(list(range(len(TEMPEST)))[:DEVICES_PLOT_MAX_RANGE], TEMPEST[:DEVICES_PLOT_MAX_RANGE], linewidth=3, color=line_config["color"], label = line_config["name"])
+    ax.fill_between(list(range(len(TEMPEST)))[:DEVICES_PLOT_MAX_RANGE], confidence_lower, confidence_upper, edgecolor = line_config["color"], facecolor = line_config["color"], alpha=0.2, linewidth = 0.5)
     i += 1
 
 # ax.set_xlabel('Degree')
-ax.set_xlabel("N-th iteration", alpha=0.5)
-ax.set_ylabel('Runtime (ms)', alpha = 0.5)
+ax.set_xlabel("Iteration #")
+ax.set_ylabel('Iteration runtime (s)')
 
 # ax.set_xticks([0, 15, 30, 45, 60]) # For ft
 ax.set_xticks([0, 2, 4, 6, 8, 10]) # For rg
@@ -222,6 +228,7 @@ plt.tight_layout()
 legend = plt.legend(fontsize="22", markerscale=0.7, handlelength=0.7, handletextpad=0.4, framealpha=0.3)
 
 plt.savefig("figures/step-time-" + TOPOLOGY_PREFIX + ".png")
+plt.savefig("figures/step-time-" + TOPOLOGY_PREFIX + ".pdf")
 
 # Plot 2 specific code ends
 
