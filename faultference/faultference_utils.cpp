@@ -14,6 +14,53 @@ using namespace std;
 
 bool USE_ACTIVE_PROBE_MC = true;
 const int SCORE_THRESHOLD = 1.0e-3;
+vector<int> ACTIVE_PROBE_FORBIDDEN_LIST;
+vector<int> LINK_REMOVAL_FORBIDDEN_LIST;
+
+bool ActiveProbeForbidden(int elem){
+    if (ACTIVE_PROBE_FORBIDDEN_LIST.size() == 0){
+        ifstream inputFile("./forbidden/active-probe");
+        if (inputFile) {        
+            int value;
+            cout << "Reading forbidden probes: ";
+            while ( inputFile >> value ) {
+                cout << value << " ";
+                ACTIVE_PROBE_FORBIDDEN_LIST.push_back(value);
+            }
+            cout << endl;
+        }
+        else{
+            cout << "*** FILE READING ERROR ***";
+        }
+    }
+    if (find(ACTIVE_PROBE_FORBIDDEN_LIST.begin(), ACTIVE_PROBE_FORBIDDEN_LIST.end(), elem) == ACTIVE_PROBE_FORBIDDEN_LIST.end()){
+        return false;
+    }
+    return true;
+}
+
+bool LinkRemovalForbidden(int elem){
+    if (LINK_REMOVAL_FORBIDDEN_LIST.size() == 0){
+        ifstream inputFile("./forbidden/link-removal");
+        if (inputFile) {        
+            int value;
+            cout << "Reading forbidden link removals: ";
+            while ( inputFile >> value ) {
+                cout << value << " ";
+                LINK_REMOVAL_FORBIDDEN_LIST.push_back(value);
+            }
+            cout << endl;
+        }
+        else{
+            cout << "*** FILE READING ERROR ***";
+        }
+    }
+    if (find(LINK_REMOVAL_FORBIDDEN_LIST.begin(), LINK_REMOVAL_FORBIDDEN_LIST.end(), elem) == LINK_REMOVAL_FORBIDDEN_LIST.end()){
+        return false;
+    }
+    return true;
+}
+
 
 void GetDroppedFlows(LogData &data, vector<Flow *> &dropped_flows) {
     for (Flow *flow : data.flows) {
@@ -581,7 +628,9 @@ set<PII> ViableSrcDstForActiveProbe(LogData *data, int ntraces,
                     if (data[t].IsNodeSwitch(dpath[i]) and
                         data[t].IsNodeSwitch(dst) and dpath[i] != dst and
                         CheckNoBranch(&data[t], flow_paths, dpath[i], dst)) {
-                        src_dst_pairs.insert(PII(dpath[i], dst));
+                            if (!(ActiveProbeForbidden(dpath[i]) || ActiveProbeForbidden(dst))){
+                                src_dst_pairs.insert(PII(dpath[i], dst));
+                            }
                     }
                 }
             }
@@ -965,6 +1014,8 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
     int max_pairs = 0;
     PII best_src_dst = PII(-1, -1);
     cout << "Viable src dst pairs " << src_dst_pairs << endl;
+    // mutex lock;
+    // #pragma omp parallel for num_threads(nopenmp_threads)
     for (PII src_dst : src_dst_pairs) {
         //! TODO: make naming consistent
         //! TODO: implement EvaluateActiveProbeMc
@@ -973,10 +1024,12 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
             data, dropped_flows, ntraces, equivalent_devices, src_dst,
             min_start_time_ms, max_finish_time_ms, eq_device_sets_copy);
         cout << "Active Probe Mc " << src_dst << " pairs " << pairs << endl;
+        // lock.lock();
         if (pairs > max_pairs) {
             best_src_dst = src_dst;
             max_pairs = pairs;
         }
+        // lock.unlock();
     }
     // do again for the best mc to populate eq_device_sets
     EvaluateActiveProbeMc(data, dropped_flows, ntraces, equivalent_devices,
@@ -1069,8 +1122,13 @@ GetBestLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                     set<Link> &used_links, double min_start_time_ms,
                     double max_finish_time_ms, string minimize_mode, int nopenmp_threads) {
     int max_pairs = 0;
+    // mutex lock;
     Link best_link_to_remove = Link(-1, -1);
+    // #pragma omp parallel for num_threads(nopenmp_threads)
     for (Link link : used_links) {
+        if (LinkRemovalForbidden(link.first) || LinkRemovalForbidden(link.second)){
+            continue;
+        }
         int link_id = data[0].links_to_ids[link];
         Link rlink = Link(link.second, link.first);
         if (data[0].IsNodeSwitch(link.first) and
@@ -1086,10 +1144,12 @@ GetBestLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                 data, dropped_flows, ntraces, equivalent_devices, link,
                 max_finish_time_ms, eq_device_sets_copy);
             cout << "Removing link " << link << " pairs " << pairs << endl;
+            // lock.lock();
             if (pairs > max_pairs) {
                 best_link_to_remove = link;
                 max_pairs = pairs;
             }
+            // lock.unlock();
         }
     }
     // do again for the best link to populate eq_device_sets
@@ -1112,6 +1172,9 @@ GetRandomLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
     double pairs = 0;
     
     for (Link link : used_links) {
+        if (LinkRemovalForbidden(link.first) || LinkRemovalForbidden(link.second)){
+            continue;
+        }
         int link_id = data[0].links_to_ids[link];
         Link rlink = Link(link.second, link.first);
         if (data[0].IsNodeSwitch(link.first) and
