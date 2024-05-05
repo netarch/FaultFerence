@@ -244,7 +244,7 @@ rs-sstudiofive wb-sstudio5-eth0
 
 bd-sipc dist8-1
 bd-sipc dist9-1
-bs-sipc sw-sipc1
+bd-sipc sw-sipc1
 bd-sipc uiuc-rpayday-speech-clinic
 bd-sipc uiuc-slpc-video-sppech-clinic
 
@@ -404,7 +404,7 @@ dist8-2 sw-solarfarm1
 dist8-2 sw-solartwo1
 dist8-2 sw-src
 dist8-2 sw-watermeter1
-sw-src1 sw-src3
+sw-src sw-src3
 
 dist8-3 CTC1 # Cloud beyoond our control
 dist8-3 CTC2 # Cloud beyoond our control
@@ -1352,8 +1352,8 @@ dist4-4 rs-spurlock
 
 dist1-5 bd-hab
 dist2-5 bd-hab
-dist-4-1 bd-pdgi1
-dist-4-2 bd-pdgi2
+dist4-1 bd-pdgi1
+dist4-2 bd-pdgi2
 bd-pgi1 bd-pgi2
 bd-pgi1 bd-pgi2
 
@@ -1709,10 +1709,12 @@ bd-law sw-law1
 bd-law sw-law2
 bd-law sw-law3
 bd-law sw-law4
+bd-law sw-law5
 sw-law10 sw-law5
 bd-law sw-law6
 bd-law sw-law7
 bd-law sw-law8
+bd-law sw-law9
 sw-law9 sw-law11
 bd-law sw-law12
 

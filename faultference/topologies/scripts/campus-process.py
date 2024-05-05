@@ -1,12 +1,13 @@
 import os
+import networkx as nx
 
 NODE_MAPPING = {}
 UNMAPPED_LINKS = []
 
 sw_index = 1
 host_offset = 0
-TOPO_DIR = "../topologies"
-TOPO_NAME = "campus-new"
+TOPO_DIR = ".."
+TOPO_NAME = "campus-str"
 
 HAVE_HOST_PREFIX = ["sw-"]
 NOT_HAVE_HOST_PREFIX = ["bd-", "core", "dist"]
@@ -43,13 +44,11 @@ with open(os.path.join(TOPO_DIR, TOPO_NAME + ".edgelist")) as f:
                     print("Rejecting the line")
                     continue
         
-        if len(line_split) > 2:
-            continue
+        # if len(line_split) > 2:
+        if False:
             if not (input("Accept this line: " + line) == "y"):
                 print("Rejecting the line")
                 continue
-            
-        
         UNMAPPED_LINKS.append([src, dst])
 
 # print(UNMAPPED_LINKS)
@@ -75,6 +74,10 @@ with open(os.path.join(TOPO_DIR, TOPO_NAME + "-processed.edgelist"), "w") as f:
             f.write(str(host_id) + "->" + str(NODE_MAPPING[node]) + "\n")
             host_offset+=1
 
-print("Number of switches:", sw_index)
-print("Number of hosts:", host_offset)
+print("Number of switches:", sw_index - 1)
+print("Number of hosts:", host_offset - 1)
 
+# To check if the entire graph is connected or not
+print("Connected components:",)
+for elem in list(nx.connected_components(nx.from_edgelist(UNMAPPED_LINKS))):
+    print("***", elem)
