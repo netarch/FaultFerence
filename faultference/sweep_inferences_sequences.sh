@@ -28,6 +28,10 @@ iteration_function() {
             --outfile ${outfile_sim} > ${topo_dir}/flowsim_initial
         echo "$i Flow simulation done"
 
+        if topo -eq "campus"
+            python3 microchanges-blacklist.py 1720 40
+        fi
+
         for sequence_mode in "Intelligent" "Random"
         do
             for inference_mode in "Flock" "Naive"
