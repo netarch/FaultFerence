@@ -35,13 +35,13 @@ DEGREE_HOST_MAPPING = {
 PLOT_MAPPING = {
     "Intelligent": {
         "Flock": {
-            "name": "FaultFerence",
+            "name": "FaultFerence (Bayesian)",
             "color": "#f1a200",
             "marker": "o",
             "markersize": 11
         },
         "Naive": {
-            "name": "FaultFerence w/o Flock",
+            "name": "FaultFerence (Basic)",
             "color": "#995ec3",
             "marker": "s",
             "markersize": 11
@@ -102,6 +102,9 @@ for topology in os.listdir(log_path):
 
             for inference_scheme in os.listdir(sequence_path):
                 if inference_scheme == "Naive_old":
+                    continue
+                
+                if inference_scheme == "Flock" and sequence_scheme == "Random":
                     continue
                 inference_path = os.path.join(sequence_path, inference_scheme)
 
@@ -194,15 +197,32 @@ for sequence_scheme in AVG_STEPS:
         i +=1
 
 # ax.set_xlabel('Degree')
-ax.set_xlabel("Topology size (# hosts)", alpha=0.5)
-ax.set_ylabel('# Manual micro-changes', alpha = 0.5)
+ax.set_xlabel("Topology size (# hosts)")
+ax.set_ylabel('# Manual micro-actions')
 
-# ax.set_xticks([10, 12, 14, 16, 18, 20]) # Topology degree
-# ax.set_xticks([100, 200, 300, 400, 500]) # Number of switches
-ax.set_xticks([0, 1500, 3000, 4500, 6000]) # Number of hosts
+PLOT_RANGES = {
+    "ft": {
+        "xticks_sw": [100, 200, 300, 400, 500, 600],
+        "xticks_deg": [10, 12, 14, 16, 18, 29],
+        "xticks_hosts": [0, 1500, 3000, 4500, 6000],
 
-# ax.set_yticklabels(["", 10, 20, 30, 40]) # For ft
-# ax.set_yticks([0, 10, 20, 30, 40]) # For ft
+        "yticks": [0, 10, 20, 30, 40]
+    },
+    "rg": {
+        "xticks_sw": [100, 200, 300, 400, 500, 600],
+        "xticks_deg": [10, 12, 14, 16, 18, 29],
+        "xticks_hosts": [0, 1500, 3000, 4500, 6000],
+
+        "yticks": [0, 1, 2, 3, 4]
+    }
+}
+
+ax.set_xticks(PLOT_RANGES[TOPOLOGY_PREFIX]["xticks_hosts"])
+# ax.set_xlim(PLOT_RANGES[TOPOLOGY_PREFIX]["xticks_hosts"][0], PLOT_RANGES[TOPOLOGY_PREFIX]["xticks_hosts"][-1])
+
+ax.set_yticks(PLOT_RANGES[TOPOLOGY_PREFIX]["yticks"])
+# ax.set_ylim(PLOT_RANGES[TOPOLOGY_PREFIX]["yticks"][0], PLOT_RANGES[TOPOLOGY_PREFIX]["yticks"][-1])
+
 
 ax.tick_params(axis="both", direction="in", labelcolor="grey", width=3, length=6)
 
@@ -217,9 +237,16 @@ ax.spines["left"].set(color="grey", alpha=0.3)
 ax.spines["right"].set(color="grey", alpha=0.3)
 
 plt.tight_layout()
-legend = plt.legend(fontsize="22", markerscale=0.7, handlelength=0.7, handletextpad=0.4, framealpha=0.3)
+
+# get handles
+handles, labels = ax.get_legend_handles_labels()
+handles = [h[0] for h in handles]
+legend = ax.legend(handles, labels, numpoints=1, fontsize="22", markerscale=0.7, handlelength=0.7, handletextpad=0.4, framealpha=0.3)
+
+# legend = plt.legend(fontsize="22", markerscale=0.7, handlelength=0.7, handletextpad=0.4, framealpha=0.3)
 
 plt.savefig("figures/steps-" + TOPOLOGY_PREFIX + ".pdf")
+plt.savefig("figures/steps-" + TOPOLOGY_PREFIX + ".png")
 
 # Plot 1 specific code ends
 
@@ -237,13 +264,26 @@ for sequence_scheme in AVG_DEVICE_SIZES:
         i += 1
 
 # ax.set_xlabel('Degree')
-ax.set_xlabel("N-th micro-change", alpha=0.5)
-ax.set_ylabel('# Equivalent devices', alpha = 0.5)
+ax.set_xlabel("Iteration #")
+ax.set_ylabel('# Equivalent devices')
 
-# ax.set_xticks([0, 15, 30, 45, 60]) # For ft
-ax.set_xticks([0, 2, 4, 6, 8, 10]) # For rg
-# ax.set_yticklabels(["", 10, 20, 30, 40]) # For ft
-# ax.set_yticks([0, 10, 20, 30, 40]) # For ft
+PLOT_RANGES_2 = {
+    "ft": {
+        "xticks": [0, 2, 4, 6, 8, 10],
+        "yticks": [0, 30, 60, 90, 120]
+    },
+    "rg": {
+        "xticks": [0, 2, 4, 6, 8, 10],
+        "yticks": [0, 2, 4, 6, 8, 10]
+    }
+}
+
+ax.set_xticks(PLOT_RANGES_2[TOPOLOGY_PREFIX]["xticks"])
+# ax.set_xlim(PLOT_RANGES_2[TOPOLOGY_PREFIX]["xticks"][0], PLOT_RANGES_2[TOPOLOGY_PREFIX]["xticks"][-1])
+
+ax.set_yticks(PLOT_RANGES_2[TOPOLOGY_PREFIX]["yticks"]) # Number of hosts
+# ax.set_ylim(PLOT_RANGES_2[TOPOLOGY_PREFIX]["yticks"][0], PLOT_RANGES_2[TOPOLOGY_PREFIX]["yticks"][-1])
+
 
 ax.tick_params(axis="both", direction="in", labelcolor="grey", width=3, length=6)
 
@@ -261,6 +301,7 @@ plt.tight_layout()
 legend = plt.legend(fontsize="22", markerscale=0.7, handlelength=0.7, handletextpad=0.4, framealpha=0.3)
 
 plt.savefig("figures/devices-" + TOPOLOGY_PREFIX + ".pdf")
+plt.savefig("figures/devices-" + TOPOLOGY_PREFIX + ".png")
 
 # Plot 2 specific code ends
 

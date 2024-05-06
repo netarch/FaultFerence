@@ -160,7 +160,7 @@ ax.set_ylabel('Total time (s)')
 # ax.set_xticks([10, 12, 14, 16, 18, 20]) # Topology degree
 # ax.set_xticks([100, 200, 300, 400, 500]) # Number of switches
 ax.set_xticks([0, 1500, 3000, 4500, 6000]) # Number of hosts
-
+ax.set_xlim([0, 6000])
 # ax.set_yticklabels(["", 10, 20, 30, 40]) # For ft
 # ax.set_yticks([0, 10, 20, 30, 40]) # For ft
 
@@ -209,6 +209,7 @@ ax.set_ylabel('Iteration runtime (s)')
 
 # ax.set_xticks([0, 15, 30, 45, 60]) # For ft
 ax.set_xticks([0, 2, 4, 6, 8, 10]) # For rg
+ax.set_xlim(0, 10)
 # ax.set_yticklabels(["", 10, 20, 30, 40]) # For ft
 # ax.set_yticks([0, 10, 20, 30, 40]) # For ft
 

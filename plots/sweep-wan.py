@@ -14,6 +14,7 @@ START_INDEX = 1
 ITERATIONS = 200
 MAX_NUM_STEPS = 250 # This is useful while calculating the average equivalent device size per step
 TOPOLOGIES = ["B4", "Kdl", "UsC" , "ASN2k"]
+TOPOLOGIES_NAMES = ["B4", "Kdl", "UsCarrier" , "ASN2k"]
 
 PLOT_MAPPING = {
     "Intelligent": {
@@ -191,12 +192,12 @@ for sequence_scheme in AVG_STEPS:
 
 # ax.set_xlabel('Degree')
 ax.set_xlabel("Topology name") #, alpha = 0.5)
-ax.set_ylabel('# Manual micro-changes') #, alpha = 0.5)
+ax.set_ylabel('# Manual micro-actions') #, alpha = 0.5)
 
 # ax.set_xticks([10, 12, 14, 16, 18, 20]) # Topology degree
 # ax.set_xticks([100, 200, 300, 400, 500]) # Number of switches
 ax.set_xticks(topo_x_axis)
-ax.set_xticklabels(TOPOLOGIES) # Number of hosts
+ax.set_xticklabels(TOPOLOGIES_NAMES) # Number of hosts
 
 # ax.set_yticklabels(["", 10, 20, 30, 40]) # For ft
 # ax.set_yticks([0, 10, 20, 30, 40]) # For ft
