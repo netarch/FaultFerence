@@ -350,6 +350,7 @@ set<int> LocalizeViaFlock(LogData *data, int ntraces, string fail_file,
     params["ASN2k"] = {1.0 - 0.81, 1.0e-6, -10.0};
     params["B4"] = {1.0 - 0.73, 1.0e-6, -10.0};
     params["Kdl"] = {1.0 - 0.89, 1.0e-6, -10.0};
+    params["campus"] = {1.0 - 0.89, 1.0e-6, -10.0};
     params["UsC"] = {1.0 - 0.81, 1.0e-6, -10.0};
 
 

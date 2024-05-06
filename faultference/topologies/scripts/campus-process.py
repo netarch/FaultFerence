@@ -4,7 +4,7 @@ import networkx as nx
 NODE_MAPPING = {}
 UNMAPPED_LINKS = []
 
-sw_index = 1
+sw_index = 0
 host_offset = 0
 TOPO_DIR = ".."
 TOPO_NAME = "campus-str"

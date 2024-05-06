@@ -394,7 +394,7 @@ class Topology(object):
         return None, None
 
     # pick failed (src, dst) pair randomly
-    def GetDropProbBlackHoleGenerate(self, args, all_rack_pair_paths):
+    def GetDropProbBlackHoleGenerate(self, args, all_rack_pair_paths, srces, dstes):
         assert not args.fails_from_file
         fail_prob = dict()
 
@@ -402,9 +402,11 @@ class Topology(object):
             return HOST_OFFSET + random.randint(0, self.nservers - 1)
 
         self.failed_src_dst_pairs = set()
+        i = 0
         while len(self.failed_components) < args.nfailures:
-            src = uniform_random()
-            dst = uniform_random()
+            src = srces[i]
+            dst = dstes[i]
+            i+=1
             failed_component, failparam = self.GetFailedComponentForSrcDstBH(
                 src, dst, all_rack_pair_paths
             )
@@ -439,12 +441,12 @@ class Topology(object):
         self.WriteBlackHoleFailsToFile(fail_prob, args.fail_file)
         return fail_prob
 
-    def GetDropProbBlackHole(self, args, all_rack_pair_paths):
+    def GetDropProbBlackHole(self, args, all_rack_pair_paths, srces, dstes):
         fail_prob = dict()
         if args.fails_from_file:
             fail_prob = self.GetDropProbBlackHoleFromFile(args)
         else:
-            fail_prob = self.GetDropProbBlackHoleGenerate(args, all_rack_pair_paths)
+            fail_prob = self.GetDropProbBlackHoleGenerate(args, all_rack_pair_paths, srces, dstes)
             # include flows argument to call this, removed for now
             # fail_prob = self.GetDropProbBlackHoleGenerate2(flows, args, all_rack_pair_paths)
         return fail_prob
@@ -501,7 +503,7 @@ class Topology(object):
                     if path != []:
                         self.PrintPath("FP", path, out=self.outfile)
 
-    def GetAllSwitchPairPaths2(self):
+    def GetAllSwitchPairPaths2(self, srces, dstes):
         all_sw_pair_paths = dict()
         switches = [node for node in self.G.nodes() if node < HOST_OFFSET]
         all_pair_dists = [
@@ -529,15 +531,22 @@ class Topology(object):
                         ret += [[src] + path for path in nbr_paths]
                 return ret
 
-        for src_sw in switches:
+        for src_sw in srces:
             if src_sw % 10 == 0:
                 print("Getting Paths", src_sw)
             src_paths = dict()
-            for dst_sw in switches:
+            for dst_sw in dstes:
                 if src_sw == dst_sw:
                     src_paths[dst_sw] = [[]]
                 else:
                     src_paths[dst_sw] = GetPaths(src_sw, dst_sw, k = K_SHORTEST)
+                    for path in src_paths[dst_sw]:
+                        for index, elem in enumerate(path[1:]):
+                            if not elem in all_sw_pair_paths:
+                                all_sw_pair_paths[elem] = {}
+                            if dst_sw not in all_sw_pair_paths[elem]:
+                                all_sw_pair_paths[elem][dst_sw] = []
+                            all_sw_pair_paths[elem][dst_sw].append(path[index:])
                 # print(src_rack, dst_rack, len(src_paths[dst_rack]), file=self.outfile)
             all_sw_pair_paths[src_sw] = src_paths
         return all_sw_pair_paths
@@ -579,9 +588,26 @@ class Topology(object):
     def PrintLogsBlackHole(self, args):
         # TODO: increase nflows to 500 x nservers
         nflows = 120000 * self.nservers
-        all_rack_pair_paths = self.GetAllSwitchPairPaths2()
+
+        def uniform_random():
+            return HOST_OFFSET + random.randint(0, self.nservers - 1)
+        
+        failure_src, failure_dst = [], []
+        if args.fails_from_file:
+            fail_prob = self.GetDropProbBlackHoleFromFile(args)
+            failure_src = [x[1] for x in fail_prob]
+            failure_dst = [x[2] for x in fail_prob]
+        else:
+            failure_src = [uniform_random() for x in range(args.nfailures)]
+            failure_dst = [uniform_random() for x in range(args.nfailures)]
+
+        print("Failure src is", failure_src)
+        print("Failure dst is", failure_dst)
+        all_rack_pair_paths = self.GetAllSwitchPairPaths2([self.host_rack_map[x] for x in failure_src], [self.host_rack_map[x] for x in failure_dst])
+        print("All rack pair paths:", all_rack_pair_paths)
         # flows = self.GetFlowsDistBH(nflows)
-        fail_prob = self.GetDropProbBlackHole(args, all_rack_pair_paths)
+        if not args.fails_from_file:
+            fail_prob = self.GetDropProbBlackHole(args, all_rack_pair_paths, failure_src, failure_dst)
 
         print("Duplicate link", args.duplicate_link)
         if len(args.duplicate_link) == 2:
@@ -610,16 +636,17 @@ class Topology(object):
             print("Failing_link", device, device, prob, file=self.outfile)
 
         filtered_pairs = set()
+        print("Failed components:", self.failed_components)
         for failed_device, src_device, dst_device in self.failed_components:
             src_rack = self.host_rack_map[src_device]
             dst_rack = self.host_rack_map[dst_device]
             devices_in_path = set()
             for path in all_rack_pair_paths[src_rack][dst_rack]:
                 for d1 in path:
-                    for d2 in path:
-                        if d1 != d2:
-                            filtered_pairs.add((d1, d2))
-
+                    d2 = dst_rack
+                    # for d2 in path:
+                    if d1 != d2:
+                        filtered_pairs.add((d1, d2))
         filtered_paths = {}
         for src, dst in filtered_pairs:
             if not src in filtered_paths:
@@ -627,7 +654,7 @@ class Topology(object):
             if not dst in filtered_paths:
                 filtered_paths[dst] = {}
             filtered_paths[src][dst] = all_rack_pair_paths[src][dst]
-            filtered_paths[dst][src] = all_rack_pair_paths[dst][src]
+            filtered_paths[dst][src] = all_rack_pair_paths[src][dst][::-1]
 
         self.PrintPaths(filtered_paths)
         for flow in itertools.chain(flows, active_probes):
