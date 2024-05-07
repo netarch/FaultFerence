@@ -588,9 +588,9 @@ bool CheckNoBranch(LogData *data, vector<Path *> *flow_paths, int src,
                 // through link.second if yes, then it is a branch and we can't
                 // eliminate this sub-graph
                 bool path_exists = false;
-                for (Path *path : mpaths->paths) {
-                    bool intersect = true;
-                    for (int mid : *path) {
+                for (Path *mpath : mpaths->paths) {
+                    bool intersect = false;
+                    for (int mid : *mpath) {
                         Link mlink = data->inverse_links[mid];
                         intersect = intersect or (mlink.first == link.second) or
                                     (mlink.second == link.second);

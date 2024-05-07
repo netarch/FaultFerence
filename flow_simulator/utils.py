@@ -531,24 +531,28 @@ class Topology(object):
                         ret += [[src] + path for path in nbr_paths]
                 return ret
 
-        for src_sw in srces:
-            if src_sw % 10 == 0:
-                print("Getting Paths", src_sw)
-            src_paths = dict()
-            for dst_sw in dstes:
+        srces = set(srces)
+        dstes = set(dstes)
+        for dst_sw in dstes:
+            if dst_sw % 10 == 0:
+                print("Getting Paths", dst_sw)
+            intermediate_srces = set()
+            for src_sw in srces:
+                if src_sw not in all_sw_pair_paths:
+                    all_sw_pair_paths[src_sw] = dict()
                 if src_sw == dst_sw:
-                    src_paths[dst_sw] = [[]]
+                    all_sw_pair_paths[src_sw][dst_sw] = [[]]
                 else:
-                    src_paths[dst_sw] = GetPaths(src_sw, dst_sw, k = K_SHORTEST)
-                    for path in src_paths[dst_sw]:
-                        for index, elem in enumerate(path[1:]):
-                            if not elem in all_sw_pair_paths:
-                                all_sw_pair_paths[elem] = {}
-                            if dst_sw not in all_sw_pair_paths[elem]:
-                                all_sw_pair_paths[elem][dst_sw] = []
-                            all_sw_pair_paths[elem][dst_sw].append(path[index:])
-                # print(src_rack, dst_rack, len(src_paths[dst_rack]), file=self.outfile)
-            all_sw_pair_paths[src_sw] = src_paths
+                    assert dst_sw not in all_sw_pair_paths[src_sw]
+                    all_sw_pair_paths[src_sw][dst_sw] = GetPaths(src_sw, dst_sw, k = K_SHORTEST)
+                    for path in all_sw_pair_paths[src_sw][dst_sw]:
+                        for elem in path[1:]:
+                            intermediate_srces.add(elem)
+            for src_sw in intermediate_srces:
+                if src_sw not in all_sw_pair_paths:
+                    all_sw_pair_paths[src_sw] = dict()
+                if src_sw != dst_sw and dst_sw not in all_sw_pair_paths[src_sw]:
+                    all_sw_pair_paths[src_sw][dst_sw] = GetPaths(src_sw, dst_sw, k = K_SHORTEST)
         return all_sw_pair_paths
 
     def GetAllRackPairPaths(self):
@@ -654,7 +658,7 @@ class Topology(object):
             if not dst in filtered_paths:
                 filtered_paths[dst] = {}
             filtered_paths[src][dst] = all_rack_pair_paths[src][dst]
-            filtered_paths[dst][src] = all_rack_pair_paths[src][dst][::-1]
+            # filtered_paths[dst][src] = all_rack_pair_paths[src][dst][::-1]
 
         self.PrintPaths(filtered_paths)
         for flow in itertools.chain(flows, active_probes):
