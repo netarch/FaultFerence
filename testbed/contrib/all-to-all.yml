@@ -1,0 +1,51 @@
+# TODO: Add a note about what this playbook does
+- hosts: hosts
+  vars:
+    results_dir: /tmp/foo
+    runtime: 5
+  tasks:
+    - name: check iperf
+      command: /usr/bin/which iperf
+      register: iperf_check
+
+    - name: install iperf
+      become: yes
+      apt: name=iperf state=present update_cache=yes cache_valid_time=3600
+      when: iperf_check|failed
+
+    - name: stop all iperf processes
+      shell: "pkill iperf || true"
+      become: yes
+
+    - name: start iperf servers on all hosts
+      shell: "start-stop-daemon --start --quiet --pidfile /var/run/iperf --exec /usr/bin/iperf -b -- -s"
+      args:
+        executable: "/bin/bash"
+
+    - name: create results directory
+      tempfile: prefix="{{ansible_hostname}}-" suffix="-iperf-results" state=directory
+      register: iperf_results
+
+    - name: executing iperf transfers
+      # TODO: takeoout the ip mapping from this space
+      shell: |
+          for host in {{ play_hosts | map('regex_replace', '192.168.(.*)\\.(.*)', '192.168.100.\\2') | list | join(' ') }}; do
+            (iperf -c $host -t {{runtime}} -i 10 > {{iperf_results.path}}/$host.txt 2>&1) &
+          done
+          wait
+
+    - name: compress results
+      archive: path="{{iperf_results.path}}" dest="{{iperf_results.path}}/{{ansible_hostname}}.tar.gz"
+
+    - name: download results
+      fetch: src="{{iperf_results.path}}/{{ansible_hostname}}.tar.gz" dest="{{results_dir}}/" flat=yes
+
+    - name: kill all iperf servers
+      shell: "pkill iperf || true"
+      become: yes
+
+    - name: cleanup artifacts
+      file: path="{{item}}" state=absent
+      with_items:
+        - "{{iperf_results.path}}"
+
