@@ -11,7 +11,7 @@ int_ctr = 0
 H1 = "h1"
 H2 = "h2"
 ip_addr = dict()
-ip_addr[H1] = "192.168.100.0/24"
+ip_addr[H1] = "192.168.101.0/24"
 ip_addr[H2] = "192.168.200.0/24"
 def GetLinkIpAddr(v1, v2):
     global interfaces
@@ -42,24 +42,14 @@ def GetNextHopIp(G, node, next_hop):
         return v1_ip.split('/')[0]
 
 def AddInitConfigA(config):
-    print("hostname alice", file=config)
-    print("spanning-tree mode mstp", file=config)
-    print("no aaa root", file=config)
-    print("username admin privilege 15 role network-admin secret sha512 $6$dt1hleZX02zeuTBy$X9V33JIH18IBmLzkNd.hG0PMSkw3YKONLdPOsxfAPIdUi1L.L6uIQDulT31lUbaFc8ul8IE3NGjOFirN4F2Qf.", file=config)
-    print("username ocean privilege 15 secret sha512 $6$.yWSt.W1J8Q/rscJ$MEA8bMn5TPotyuYlwTORsRKBmRUCenM/jvM6CwWqeoc4Z39pQ0GKm5tEkUEX9z3oo5ZYtNfjQd3gIJLI4uv45.", file=config)
     print("vlan 100", file=config)
     print("interface Ethernet1", file=config)
     print("switchport access vlan 100", file=config)
     print("interface Vlan100", file=config)
-    print("ip address 192.168.100.1/24\n", file=config)
+    print("ip address 192.168.101.1/24\n", file=config)
 
 
 def AddInitConfigB(config):
-    print("hostname bob", file=config)
-    print("spanning-tree mode mstp", file=config)
-    print("no aaa root", file=config)
-    print("username admin privilege 15 role network-admin secret sha512 $6$24NEwyQfB7LDYw99$n3tVOTFH26GDmWmwNj4yW2XKgPZjYO4IzgaX8mWbNRlCDEzcm2hSiE/n9GUPJgU74c/nPlUYdmf1Y2zZXcnuO.", file=config)
-    print("username ocean privilege 15 secret sha512 $6$eo4K.WyEKqayuBGE$Sb8MeRpbTDVLWnX97YCeSOKY7ATl8ECT1WQ5JkQkiCK8FSGQ9tlY/RGLQrFfEivKER2FOSZukGUegSgjHPhtm0", file=config)
     print("vlan 200", file=config)
     print("interface Ethernet1", file=config)
     print("switchport access vlan 200", file=config)
@@ -124,7 +114,7 @@ with open("a.config", "w") as aconfig:
                             # print(node, hop, target)
                             other_ip = GetNextHopIp(G, node, hop)
                             # print("next hop id", node, hop, other_ip)
-                            # ip route vrf B2 192.168.100.0/24 17.31.0.13
+                            # ip route vrf B2 192.168.101.0/24 17.31.0.13
                             if node == "A0" or node == "B0":
                                 # default vrf
                                 print("ip route %s %s" % (ip_addr[target], other_ip), file=config)
