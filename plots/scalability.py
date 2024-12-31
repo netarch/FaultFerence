@@ -9,11 +9,11 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 
-def GetTimeValue(file_path):
+def GetTimeValue(file_path, stringy):
     lines = open(file_path).readlines()
     for line in lines:
-        if "Time taken:" in line:
-            return int(line.lstrip("Time taken: "))/(1000 * 1000)
+        if stringy in line:
+            return int(line.lstrip(stringy))/(1000 * 1000)
     assert(False)
 
 log_path = sys.argv[1]
@@ -78,6 +78,13 @@ AVG_TIMES_STEP = defaultdict(lambda: defaultdict(int))
 CONFIDENCE_DEGREE = defaultdict(lambda: defaultdict(int))
 CONFIDENCE_STEP = defaultdict(lambda: defaultdict(int))
 
+SEQ_ALL_TIMES = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+SEQ_AVG_TIMES_DEGREE = defaultdict(lambda: defaultdict(int))
+SEQ_ALL_TIMES_STEP = defaultdict(lambda: defaultdict(list))
+SEQ_AVG_TIMES_STEP = defaultdict(lambda: defaultdict(int))
+SEQ_CONFIDENCE_DEGREE = defaultdict(lambda: defaultdict(int))
+SEQ_CONFIDENCE_STEP = defaultdict(lambda: defaultdict(int))
+
 # Schema of the log path should be <logdir>/<topology>/<iteration>/<sequence_scheme>/<inference_scheme>/
 for topology in os.listdir(log_path):
     if not topology.startswith(TOPOLOGY_PREFIX):
@@ -112,24 +119,36 @@ for topology in os.listdir(log_path):
                     print("WARNING:", topo_degree, iter_string, inference_scheme, sequence_scheme, "- some iterations were killed in this run")
                     continue
                 num_steps = int(open(os.path.join(inference_path, "num_steps")).read())
-                all_times = [GetTimeValue(os.path.join(inference_path, "localization", "iter_" + str(stepy))) for stepy in range(1, num_steps + 1)]
+                all_times = [GetTimeValue(os.path.join(inference_path, "localization", "iter_" + str(stepy)), "Time taken: ") for stepy in range(1, num_steps + 1)]
                 ALL_TIMES[topo_degree][inference_scheme][iter_index] = all_times
+
+                seq_all_times = [GetTimeValue(os.path.join(inference_path, "localization", "iter_" + str(stepy)), "Time for Sequencer: ") for stepy in range(1, num_steps + 1)]
+                SEQ_ALL_TIMES[topo_degree][inference_scheme][iter_index] = seq_all_times
 
                 for stepy in range(num_steps):
                     if topo_degree == 18:
                         ALL_TIMES_STEP[inference_scheme][stepy].append(all_times[stepy])
-print(ALL_TIMES)
+                        SEQ_ALL_TIMES_STEP[inference_scheme][stepy].append(seq_all_times[stepy])
+
 for topo_degree in ALL_TIMES:
     for inference_scheme in ALL_TIMES[topo_degree]:
         TEMPEST = [sum(x) for x in list(ALL_TIMES[topo_degree][inference_scheme].values())]
         AVG_TIMES_DEGREE[inference_scheme][topo_degree] = np.mean(TEMPEST)
         CONFIDENCE_DEGREE[inference_scheme][topo_degree] = st.norm.interval(confidence=0.90, loc=np.mean(TEMPEST), scale=st.sem(TEMPEST))
+
+        SEQ_TEMPEST = [sum(x) for x in list(SEQ_ALL_TIMES[topo_degree][inference_scheme].values())]
+        SEQ_AVG_TIMES_DEGREE[inference_scheme][topo_degree] = np.mean(SEQ_TEMPEST)
+        SEQ_CONFIDENCE_DEGREE[inference_scheme][topo_degree] = st.norm.interval(confidence=0.90, loc=np.mean(SEQ_TEMPEST), scale=st.sem(SEQ_TEMPEST))
         
 for inference_scheme in ALL_TIMES_STEP:
     for steps in ALL_TIMES_STEP[inference_scheme]:
         TEMPEST = ALL_TIMES_STEP[inference_scheme][steps]
         AVG_TIMES_STEP[inference_scheme][steps] = np.mean(TEMPEST)
         CONFIDENCE_STEP[inference_scheme][steps] = st.norm.interval(confidence=0.90, loc=np.mean(TEMPEST), scale=st.sem(TEMPEST))
+
+        SEQ_TEMPEST = SEQ_ALL_TIMES_STEP[inference_scheme][steps]
+        SEQ_AVG_TIMES_STEP[inference_scheme][steps] = np.mean(SEQ_TEMPEST)
+        SEQ_CONFIDENCE_STEP[inference_scheme][steps] = st.norm.interval(confidence=0.90, loc=np.mean(SEQ_TEMPEST), scale=st.sem(SEQ_TEMPEST))
 
 fm.fontManager.addfont("./gillsans.ttf")
 matplotlib.rcParams.update({'font.size': 24, 'font.family': "GillSans"})
@@ -160,7 +179,7 @@ ax.set_ylabel('Total time (s)')
 # ax.set_xticks([10, 12, 14, 16, 18, 20]) # Topology degree
 # ax.set_xticks([100, 200, 300, 400, 500]) # Number of switches
 ax.set_xticks([0, 1500, 3000, 4500, 6000]) # Number of hosts
-ax.set_xlim([0, 6000])
+ax.set_xlim(left=0)
 # ax.set_yticklabels(["", 10, 20, 30, 40]) # For ft
 # ax.set_yticks([0, 10, 20, 30, 40]) # For ft
 
@@ -194,14 +213,17 @@ ax = plt.subplot(1, 1, 1)
 i = 0
 for inference_scheme in AVG_TIMES_STEP:
     TEMPEST = list(OrderedDict(sorted(AVG_TIMES_STEP[inference_scheme].items())).values())[:DEVICES_PLOT_MAX_RANGE]
+    SEQ_TEMPEST = list(OrderedDict(sorted(SEQ_AVG_TIMES_STEP[inference_scheme].items())).values())[:DEVICES_PLOT_MAX_RANGE]
     confidence_dicty = list(OrderedDict(sorted(CONFIDENCE_STEP[inference_scheme].items())).values())[:DEVICES_PLOT_MAX_RANGE]
     confidence_upper = np.array([x[1] for x in confidence_dicty])
     confidence_lower = np.array([x[0] for x in confidence_dicty])
+
     
     line_config = PLOT_MAPPING["Intelligent"][inference_scheme]
-    ax.plot(list(range(len(TEMPEST)))[:DEVICES_PLOT_MAX_RANGE], TEMPEST[:DEVICES_PLOT_MAX_RANGE], linewidth=3, color=line_config["color"], label = line_config["name"])
-    ax.fill_between(list(range(len(TEMPEST)))[:DEVICES_PLOT_MAX_RANGE], confidence_lower, confidence_upper, edgecolor = line_config["color"], facecolor = line_config["color"], alpha=0.2, linewidth = 0.5)
+    ax.plot(list(range(len(TEMPEST))), TEMPEST, linewidth=3, color=line_config["color"], label = line_config["name"])
+    # ax.fill_between(list(range(len(TEMPEST))), SEQ_TEMPEST, TEMPEST, edgecolor = line_config["color"], facecolor = line_config["color"], alpha=0.2, linewidth = 0.5)
     i += 1
+ax.plot(list(range(len(TEMPEST))), SEQ_TEMPEST, linewidth=3, color="#cf4c32", label = "Sequencing Algorithm", linestyle = "dashed")
 
 # ax.set_xlabel('Degree')
 ax.set_xlabel("Iteration #")
