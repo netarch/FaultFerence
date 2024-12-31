@@ -102,7 +102,7 @@ GetRandomLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
 bool CheckNoBranch(LogData *data, vector<Path *> *flow_paths, int src, int dst);
 set<PII> ViableSrcDstForActiveProbe(LogData *data, int ntraces,
                                     double min_start_time_ms,
-                                    double max_finish_time_ms);
+                                    double max_finish_time_ms, int nopenmp_threads);
 
 /* Get <src, dst, srcport, dstport> tuple that had the most number of packet drops */
 tuple<int, int, int, int> SrcDstWithMaxDrops(LogData *data, vector<Flow *> *dropped_flows,

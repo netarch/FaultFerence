@@ -567,10 +567,13 @@ bool CheckNoBranch(LogData *data, vector<Path *> *flow_paths, int src,
 
 set<PII> ViableSrcDstForActiveProbe(LogData *data, int ntraces,
                                     double min_start_time_ms,
-                                    double max_finish_time_ms) {
+                                    double max_finish_time_ms, int nopenmp_threads) {
     set<PII> src_dst_pairs;
-    for (int t = 0; t < ntraces; t++) {
-        for (Flow *flow : data[t].flows) {
+    for (int t = 0; t < 1; t++) {
+        mutex lock;
+#pragma omp parallel for num_threads(nopenmp_threads)
+        for (int iii = 0; iii < data[t].flows.size(); iii++) {
+            Flow *flow = data[t].flows[iii];
             vector<Path *> *flow_paths = flow->GetPaths(max_finish_time_ms);
             for (Path *path : *flow_paths) {
                 Path dpath;
@@ -581,7 +584,9 @@ set<PII> ViableSrcDstForActiveProbe(LogData *data, int ntraces,
                     if (data[t].IsNodeSwitch(dpath[i]) and
                         data[t].IsNodeSwitch(dst) and dpath[i] != dst and
                         CheckNoBranch(&data[t], flow_paths, dpath[i], dst)) {
+                        lock.lock();
                         src_dst_pairs.insert(PII(dpath[i], dst));
+                        lock.unlock();
                     }
                 }
             }
@@ -638,6 +643,8 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
     BinFlowsByDeviceAgg(data, dropped_flows, ntraces, removed_links,
                         flows_by_device_agg, max_finish_time_ms);
 
+    auto start = chrono::high_resolution_clock::now();
+
     set<int> eq_devices;
     if (inference_mode == "Flock") {
         eq_devices =
@@ -651,9 +658,15 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
         cout << "ERROR! ERROR! Somebody save me!" << endl;
     }
 
+    auto stop = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+    cout << endl << "Time for Inference: " << duration.count() << endl;
+
     cout << "equivalent devices " << eq_devices << " size " << eq_devices.size()
          << endl;
 
+    start = chrono::high_resolution_clock::now();
+    
     GetExplanationEdgesFromMap(flows_by_device_agg);
     cout << "Explaining drops" << endl;
 
@@ -684,6 +697,9 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
             break;
         }
     }
+    stop = chrono::high_resolution_clock::now();
+    duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+    cout << endl << "Time for Sequencer: " << duration.count() << endl;
 }
 
 pair<MicroChange *, double>
@@ -698,14 +714,24 @@ GetMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
     set<set<int>> eq_device_sets_lr = eq_device_sets;
     int TOTAL_OPTIONS = 2;
     if (sequence_mode == "Intelligent"){
+        auto start = chrono::high_resolution_clock::now();
+
         result_ap = GetBestActiveProbeMc(
             data, dropped_flows, ntraces, eq_devices, eq_device_sets_ap,
             used_links, min_start_time_ms, max_finish_time_ms, minimize_mode, nopenmp_threads);
+        
+        auto stop = chrono::high_resolution_clock::now();
+        auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+        cout << endl << "Time for Active Probe: " << duration.count() << endl;
         
         result_lr = GetBestLinkToRemove(
             data, dropped_flows, ntraces, eq_devices, eq_device_sets_lr,
             used_links, min_start_time_ms, max_finish_time_ms, minimize_mode,
             nopenmp_threads);
+        
+        auto stoppest = chrono::high_resolution_clock::now();
+        duration = chrono::duration_cast<chrono::microseconds>(stoppest - stop);
+        cout << endl << "Time for Link Removal: " << duration.count() << endl;
         
         cout << "AP score: " << result_ap.second << ",LR score: " << result_lr.second;
         if (result_ap.second > result_lr.second){
@@ -961,11 +987,16 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                      string minimize_mode, int nopenmp_threads) {
 
     set<PII> src_dst_pairs = ViableSrcDstForActiveProbe(
-        data, ntraces, min_start_time_ms, max_finish_time_ms);
+        data, ntraces, min_start_time_ms, max_finish_time_ms, nopenmp_threads);
     int max_pairs = 0;
     PII best_src_dst = PII(-1, -1);
     cout << "Viable src dst pairs " << src_dst_pairs << endl;
-    for (PII src_dst : src_dst_pairs) {
+    mutex lock;
+    vector<PII> src_dst_pairy(src_dst_pairs.begin(), src_dst_pairs.end());
+    cout << "** OPENMP Threads are" << nopenmp_threads << endl;
+#pragma omp parallel for num_threads(nopenmp_threads)
+    for (int i = 0; i < src_dst_pairy.size(); i++) {
+        PII src_dst = src_dst_pairy[i];
         //! TODO: make naming consistent
         //! TODO: implement EvaluateActiveProbeMc
         set<set<int>> eq_device_sets_copy = eq_device_sets;
@@ -973,10 +1004,12 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
             data, dropped_flows, ntraces, equivalent_devices, src_dst,
             min_start_time_ms, max_finish_time_ms, eq_device_sets_copy);
         cout << "Active Probe Mc " << src_dst << " pairs " << pairs << endl;
+        lock.lock();
         if (pairs > max_pairs) {
             best_src_dst = src_dst;
             max_pairs = pairs;
         }
+        lock.unlock();
     }
     // do again for the best mc to populate eq_device_sets
     EvaluateActiveProbeMc(data, dropped_flows, ntraces, equivalent_devices,
@@ -1008,7 +1041,7 @@ GetRandomActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces
                      string minimize_mode, int nopenmp_threads) {
 
     set<PII> src_dst_pairs = ViableSrcDstForActiveProbe(
-        data, ntraces, min_start_time_ms, max_finish_time_ms);
+        data, ntraces, min_start_time_ms, max_finish_time_ms, nopenmp_threads);
     set<PII> src_dst_pairs_non_zero;
     int pairs = 0;
     PII best_src_dst = PII(-1, -1);
@@ -1069,8 +1102,13 @@ GetBestLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                     set<Link> &used_links, double min_start_time_ms,
                     double max_finish_time_ms, string minimize_mode, int nopenmp_threads) {
     int max_pairs = 0;
+    mutex lock;
     Link best_link_to_remove = Link(-1, -1);
-    for (Link link : used_links) {
+    vector<Link> linkys(used_links.begin(), used_links.end());
+    cout << "** OPENMP Threads are here " << nopenmp_threads << endl;
+#pragma omp parallel for num_threads(nopenmp_threads)
+    for (int i = 0; i < linkys.size(); i++) {
+        Link link = linkys[i];
         int link_id = data[0].links_to_ids[link];
         Link rlink = Link(link.second, link.first);
         if (data[0].IsNodeSwitch(link.first) and
@@ -1086,10 +1124,12 @@ GetBestLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                 data, dropped_flows, ntraces, equivalent_devices, link,
                 max_finish_time_ms, eq_device_sets_copy);
             cout << "Removing link " << link << " pairs " << pairs << endl;
+            lock.lock();
             if (pairs > max_pairs) {
                 best_link_to_remove = link;
                 max_pairs = pairs;
             }
+            lock.unlock();
         }
     }
     // do again for the best link to populate eq_device_sets

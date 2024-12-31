@@ -1,0 +1,26 @@
+{
+    "files.associations": {
+        "ostream": "cpp",
+        "dense_hash_map": "cpp",
+        "dense_hash_set": "cpp",
+        "sparse_hash_map": "cpp",
+        "sparse_hash_set": "cpp",
+        "sparsetable": "cpp",
+        "array": "cpp",
+        "deque": "cpp",
+        "forward_list": "cpp",
+        "list": "cpp",
+        "string": "cpp",
+        "unordered_map": "cpp",
+        "unordered_set": "cpp",
+        "vector": "cpp",
+        "string_view": "cpp",
+        "initializer_list": "cpp",
+        "regex": "cpp",
+        "iostream": "cpp",
+        "iosfwd": "cpp",
+        "chrono": "cpp"
+    },
+    "search.useIgnoreFiles": true,
+    "git.terminalAuthentication": false
+}

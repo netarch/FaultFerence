@@ -3,18 +3,18 @@
 
 echo "PID is " $$
 
-sweep_logdir=sweep_logs/2024-05-01-18-55-09
+sweep_logdir=sweep_logs/$(date +%Y-%m-%d-%H-%M-%S)
 mkdir -p ${sweep_logdir}
 
 # Parameters
-start_index=1
-iters=99
+start_index=19
+iters=21
 nfails=1
 
 iteration_function() {
     i=$1
 
-    for topo in "ASN2k"
+    for topo in "ft_deg10_sw125_svr250_os3_bidir_false" "ft_deg12_sw180_svr432_os3_bidir_false" "ft_deg14_sw245_svr686_os3_bidir_false" "ft_deg16_sw320_svr1024_os3_bidir_false" "ft_deg18_sw405_svr1458_os3_bidir_false" "ft_deg20_sw500_svr2000_os3_bidir_false"
     do
         topo_dir=${sweep_logdir}/${topo}/${i}
         mkdir -p ${topo_dir}
@@ -28,7 +28,7 @@ iteration_function() {
             --outfile ${outfile_sim} > ${topo_dir}/flowsim_initial
         echo "$i Flow simulation done"
 
-        for sequence_mode in "Intelligent" "Random"
+        for sequence_mode in "Intelligent"
         do
             for inference_mode in "Flock" "Naive"
             do
@@ -46,9 +46,6 @@ iteration_function() {
 
 for i in $(seq $start_index $((start_index+iters)))
 do
-    iteration_function $i &
-    if [[ $(($i%25)) -eq 0 ]]; then
-        wait
-    fi
+    iteration_function $i
 done
 wait

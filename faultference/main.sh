@@ -23,7 +23,7 @@ mkdir -p ${logdir} ${flowsim_logs} ${modified_topo_dir} ${localization_logs} ${m
 
 # Parameters
 nfails=1
-nthreads=2
+nthreads=32
 maxiter=200
 max_changes=1
 
