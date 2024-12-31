@@ -1,7 +1,10 @@
+# Usage: python3 microchanges-blacklist.py <num_nodes> <fraction_requested>
+# num_nodes: Total number of switches in the topology
+# fraction_requested: Fraction of nodes that cannot support each micro-action
+
 import os
 import random
 import sys
-
 
 FORBIDDEN_DIR = "forbidden"
 MICRO_ACTIONS = ["active-probe", "link-removal"]
