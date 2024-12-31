@@ -1,0 +1,27 @@
+- hosts: hosts
+  vars:
+    drop_rate: 0.5
+
+  tasks:
+    - name: obtain interface to monitor
+      shell: "ip a | grep 'BROADCAST' | grep -E ': enp|ens' | awk '{print $2}' | sed 's/://g'"
+      register: monitor_interface
+      become: true # if nothing, to cache the sudo password ?
+
+ #   - name: install packet corruption rules
+ #     command: "{{item}}"
+ #     with_items:
+ #       - "tc qdisc add dev {{monitor_interface.stdout}} root handle 1: prio priomap 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+ #       - "tc qdisc add dev {{monitor_interface.stdout}} parent 1:2 handle 20: netem corrupt 0.5%"
+ #       - "tc filter add dev {{monitor_interface.stdout}} parent 1:0 protocol ip u32 match ip dport 5301 0xffff flowid 1:2"
+ #     ignore_errors: true
+ #     become: true
+
+    - name: uninstall packet corruption rules
+      command: "{{item}}"
+      with_items:
+        - "tc qdisc delete dev {{monitor_interface.stdout}} parent 1:2 handle 20: netem corrupt 0.5%"
+        - "tc qdisc delete dev {{monitor_interface.stdout}} root handle 1: prio priomap 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0"
+      ignore_errors: true
+      become: true
+

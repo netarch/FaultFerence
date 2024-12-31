@@ -1,0 +1,357 @@
+c1 c2
+c1 c8
+c1 c9
+c2 c8
+c2 c9
+c8 c9
+
+c1 rbd2
+c2 rbd2
+c8 rbd2
+c9 rbd2
+
+
+c1 rbd9
+c2 rbd9
+c8 rbd9
+c9 rbd9
+
+c1 d11
+c1 d12
+c1 d13
+c1 d14
+c1 d15
+c1 d21
+c1 d22
+c1 d23
+c1 d24
+c1 d25
+
+
+c2 d11
+c2 d12
+c2 d13
+c2 d14
+c2 d15
+c2 d21
+c2 d22
+c2 d23
+c2 d24
+c2 d25
+
+c1 d10_1
+c2 d10_1
+
+c8 d41
+c8 d42
+c8 d43
+c8 d44
+c8 d61
+c8 d81
+c8 d82
+c8 d83
+c8 d91
+c8 d92
+c8 d93
+
+rbd2 e1
+rbd2 e2
+rbd2 ur1c
+rbd2 rwn2
+
+rbd9 e1
+rbd9 e2
+rbd9 ur1c
+rbd9 rwn9
+
+
+bd-abbott sw-abbott1
+bd-abbott sw-abbott2
+bd-abbott sw-abbott3
+bd-abbott sw-abbott6
+bd-abbott sw-abbott7
+bd-abbott sw-therm
+bd-abbott d22
+bd-abbott d21
+
+
+bd-arch sw-arch2
+bd-arch sw-arch3
+bd-arch sw-arch4
+bd-arch d21
+bd-arch d22
+
+
+bd-arec sw-arec-dante
+bd-arec sw-arec1
+bd-arec sw-arec2
+bd-arec sw-arec3
+bd-arec sw-arec6
+bd-arec sw-arec7
+bd-arec sw-arec8
+bd-arec sw-arec9
+bd-arec d21
+bd-arec d22
+
+bd-armory sw-armory1
+bd-armory sw-armory2
+bd-armory sw-armory3
+bd-armory sw-armory4
+bd-armory sw-armory5
+bd-armory sw-armory6
+bd-armory sw-armory7
+bd-armory sw-armory8
+bd-armory sw-armory9
+bd-armory sw-armory10
+bd-armory d21
+bd-armory d22
+
+
+bd-artdesign sw-artdesign1
+bd-artdesign sw-artdesign2
+bd-artdesign sw-artdesign3
+bd-artdesign sw-artdesign4
+bd-artdesign sw-artdesign5
+bd-artdesign d21
+bd-artdesign d22
+
+bd-atkintenn sw-atkintenn1
+bd-atkintenn sw-atkintenn2
+bd-atkintenn sw-atkintenn3
+bd-atkintenn sw-atkintenn4
+bd-atkintenn sw-atkintenn5
+bd-atkintenn d21
+bd-atkintenn d22
+
+bd-bielfeldt sw-bielfeldt1
+bd-bielfeldt sw-bielfeldt2
+bd-bielfeldt d21
+bd-bielfeldt d22
+
+bd-bousfield sw-bousfield1
+bd-bousfield sw-bousfield2
+bd-bousfield sw-bousfield3
+bd-bousfield sw-bousfield4
+bd-bousfield sw-bousfield5
+bd-bousfield sw-bousfield6
+bd-bousfield sw-bousfield7
+bd-bousfield sw-bousfield8
+bd-bousfield sw-bousfield9
+bd-bousfield sw-bousfield10
+bd-bousfield sw-bousfield11
+bd-bousfield sw-bousfield12
+bd-bousfield sw-bousfield13
+bd-bousfield d21
+bd-bousfield d22
+
+bd-clark sw-br1
+bd-clark sw-ln1
+bd-clark sw-cl1
+bd-clark sw-cl2
+bd-clark sw-cl3
+bd-clark d21
+bd-clark d22
+
+bd-cstores sw-cstores1
+bd-cstores sw-cstores2
+bd-cstores sw-cstores3
+bd-cstores d21
+bd-cstores d22
+
+bd-dkhall sw-dkhall1
+bd-dkhall sw-dkhall2
+bd-dkhall sw-dkhall3
+bd-dkhall sw-dkhall4
+bd-dkhall sw-dkhall5
+bd-dkhall sw-dkhall6
+bd-dkhall sw-dkhall7
+bd-dkhall sw-dkhall8
+bd-dkhall d21
+bd-dkhall d22
+
+bd-edu sw-edu1
+bd-edu sw-edu2
+bd-edu sw-edu3
+bd-edu sw-edu4
+bd-edu sw-edu5
+bd-edu sw-edu6
+bd-edu sw-edu7
+bd-edu sw-edu8
+bd-edu d21
+bd-edu d22
+
+rs-flagg sw-flagg1
+rs-flagg d21
+rs-flagg d22
+
+bd-hopkins sw-hp1
+bd-hopkins sw-hp2
+bd-hopkins d21
+bd-hopkins d22
+
+bd-ilir sw-ilir1
+bd-ilir sw-ilir2
+bd-ilir d21
+bd-ilir d22
+
+
+bd-idsh sw-idsh1
+bd-idsh sw-idsh2
+bd-idsh d21
+bd-idsh d22
+
+rs-ice sw-ice1
+rs-ice d23
+rs-ice d24
+
+
+rs-illinoispress sw-illinoispress2
+rs-illinoispress d23
+rs-illinoispress d24
+
+rs-ingolf sw-ingolf1
+rs-ingolf d23
+rs-ingolf d24
+
+bd-irwin sw-irwin1
+bd-irwin sw-irwin2
+bd-irwin d21
+bd-irwin d22
+
+
+bd-law sw-law1
+bd-law sw-law2
+bd-law sw-law3
+bd-law sw-law4
+bd-law sw-law5
+bd-law sw-law6
+bd-law sw-law7
+bd-law sw-law8
+bd-law sw-law9
+bd-law sw-law10
+bd-law sw-law11
+bd-law sw-law12
+bd-law d21
+bd-law d22
+
+
+bd-npl sw-npl1
+bd-npl sw-npl2
+bd-npl sw-npl3
+bd-npl sw-npl4
+bd-npl d21
+bd-npl d22
+
+
+rs-noble sw-noble1
+rs-noble d23
+rs-noble d24
+
+
+bd-oakstrlib sw-oakstrlib1
+bd-oakstrlib sw-oakstrlib2
+bd-oakstrlib d21
+bd-oakstrlib d22
+
+bd-pcf sw-pcf1
+bd-pcf sw-pcf2
+bd-pcf d21
+bd-pcf d22
+
+
+bd-ppsb sw-ppsb1
+bd-ppsb sw-ppsb2
+bd-ppsb sw-ppsb3
+bd-ppsb sw-ppsb6
+bd-ppsb sw-ppsb8
+bd-ppsb sw-ppsb9
+bd-ppsb sw-ppsb10
+bd-ppsb sw-ppsb11
+bd-ppsb sw-ppsb12
+bd-ppsb sw-ppsb13
+bd-ppsb sw-ppsb14
+bd-ppsb d21
+bd-ppsb d22
+
+bd-press sw-press1
+bd-press sw-press2
+bd-press d21
+bd-press d22
+
+bd-pso sw-pso1
+bd-pso sw-pso2
+bd-pso d21
+bd-pso d22
+
+
+bd-rehabed sw-rehabed1
+bd-rehabed sw-rehabed2
+bd-rehabed d21
+bd-rehabed d22
+
+bd-scott sw-sc3
+bd-scott sw-sc4
+bd-scott d21
+bd-scott d22
+
+
+bd-sdrp sw-sdrp1
+bd-sdrp sw-sdrp2
+bd-sdrp sw-sdrp3
+bd-sdrp sw-sdrp4
+bd-sdrp sw-sdrp5
+bd-sdrp sw-sdrp6
+bd-sdrp d21
+bd-sdrp d22
+
+
+bd-stadium sw-stadium1
+bd-stadium sw-stadium2
+bd-stadium sw-stadium3
+bd-stadium sw-stadium4
+bd-stadium sw-stadium5
+bd-stadium sw-stadium6
+bd-stadium sw-stadium7
+bd-stadium sw-stadium8
+bd-stadium sw-stadium9
+bd-stadium sw-stadium11
+bd-stadium sw-stadium12
+bd-stadium sw-stadium13
+bd-stadium sw-stadium14
+bd-stadium sw-stadium16
+bd-stadium sw-stadium18
+bd-stadium sw-stadium20
+bd-stadium sw-stadium21
+bd-stadium d21
+bd-stadium d22
+
+
+bd-tbh sw-tbh1
+bd-tbh sw-tbh2
+bd-tbh sw-tbh3
+bd-tbh sw-tbh4
+bd-tbh sw-tbh5
+bd-tbh sw-tbh6
+bd-tbh d21
+bd-tbh d22
+
+bd-tvd sw-tf1
+bd-tvd sw-vd2
+bd-tvd sw-vd3
+bd-tvd d21
+bd-tvd d22
+
+bd-ubben sw-ubben1
+bd-ubben sw-ubben2
+bd-ubben sw-ubben3
+bd-ubben sw-ubben4
+bd-ubben sw-ubben5
+bd-ubben d21
+bd-ubben d22
+
+bd-uifhq sw-uifhq1
+bd-uifhq sw-uifhq2
+bd-uifhq sw-uifhq3
+bd-uifhq d14
+bd-uifhq d24
+

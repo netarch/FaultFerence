@@ -74,6 +74,12 @@ for topology in TOPOLOGIES:
         if not iter_string in os.listdir(topology_path):
             print("WARNING:", topology, "- does not have iteration", iter_string)
             continue
+
+        initial_fails_file = os.path.join(iter_path, "initial.fails")
+        if not os.path.exists(initial_fails_file):
+            print("WARNING:", topology, iter_string, "- initial fail file not created")
+            continue
+
         for sequence_scheme in os.listdir(iter_path):
             sequence_path = os.path.join(iter_path, sequence_scheme)
 
