@@ -28,7 +28,7 @@ iteration_function() {
             --outfile ${outfile_sim} > ${topo_dir}/flowsim_initial
         echo "$i Flow simulation done"
 
-        if topo -eq "campus"
+        if [ "$topo" = "campus" ]; then
             python3 microchanges-blacklist.py 1720 40
         fi
 
