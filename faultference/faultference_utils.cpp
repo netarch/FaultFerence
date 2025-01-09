@@ -790,6 +790,28 @@ GetMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
             eq_device_sets = eq_device_sets_lr;
         }
     }
+    else if (sequence_mode == "NetPilot"){
+        result_ap = GetLowestCostActiveProbeMc(
+            data, dropped_flows, ntraces, eq_devices, eq_device_sets_ap,
+            used_links, min_start_time_ms, max_finish_time_ms, minimize_mode, nopenmp_threads);
+        
+        result_lr = GetLowestCostLinkToRemove(
+            data, dropped_flows, ntraces, eq_devices, eq_device_sets_lr,
+            used_links, min_start_time_ms, max_finish_time_ms, minimize_mode,
+            nopenmp_threads);
+        
+        cout << "AP cost: " << result_ap.second << ",LR cost: " << result_lr.second;
+        if (result_ap.second > result_lr.second){
+            cout << "AP was chosen" << endl;
+            result = result_ap;
+            eq_device_sets = eq_device_sets_ap;
+        }
+        else{
+            cout << "LR was chosen" << endl;
+            result = result_lr;
+            eq_device_sets = eq_device_sets_lr;
+        }
+    }
     return result;
 }
 
@@ -840,7 +862,7 @@ void BinFlowsByDeviceAgg(LogData *data, vector<Flow *> *dropped_flows,
     }
 }
 
-double get_normalized_score(MicroChange *m, double score, string minimize_mode){
+double get_normalized_score(MicroChange *m, double score, string minimize_mode, int flows_impacted){
     cout << "Minimize mode is " << minimize_mode << " score is " << score << endl;
     if (minimize_mode == "Cost"){
         score /= m->GetCost();
@@ -848,6 +870,7 @@ double get_normalized_score(MicroChange *m, double score, string minimize_mode){
     else if (minimize_mode == "Time"){
         score /= m->GetTimeToDiagnose();
     }
+    score /= flows_impacted;
     cout << "Normalized score is " << score << endl;
     return score;
 }
@@ -1051,7 +1074,72 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
         new ActiveProbeMc(best_src_dst.first, best_src_dst.second, srcport,
                           dstport, nprobes, hsrc, hdst);
     
-    return pair<ActiveProbeMc *, double>(amc, get_normalized_score(amc, (double)max_pairs, minimize_mode));
+    return pair<ActiveProbeMc *, double>(amc, get_normalized_score(amc, (double)max_pairs, minimize_mode, 1));
+}
+
+double GetFlowsImpacted(LogData *data, double max_finish_time_ms, Link broken_link){
+    double flows_impacted = 0;
+    for (Flow *flow : data[0].flows) {
+            vector<Path *> *flow_paths = flow->GetPaths(max_finish_time_ms);
+            for (Path *path : *flow_paths) {
+                for (int link_id : *path) {
+                    Link link = data[0].inverse_links[link_id];
+                    if (link.first == broken_link.first && link.second == broken_link.second) {
+                        flows_impacted += 1.0/(flow_paths->size());
+                    }
+                }
+            }
+        }
+    return flows_impacted;
+}
+
+pair<ActiveProbeMc *, double>
+GetLowestCostActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
+                     set<int> &equivalent_devices,
+                     set<set<int>> &eq_device_sets, set<Link> &used_links,
+                     double min_start_time_ms, double max_finish_time_ms,
+                     string minimize_mode, int nopenmp_threads) {
+
+    set<PII> src_dst_pairs = ViableSrcDstForActiveProbe(
+        data, ntraces, min_start_time_ms, max_finish_time_ms);
+    int max_pairs = 0;
+    PII best_src_dst = PII(-1, -1);
+    cout << "Viable src dst pairs " << src_dst_pairs << endl;
+    // mutex lock;
+    // #pragma omp parallel for num_threads(nopenmp_threads)
+    for (PII src_dst : src_dst_pairs) {
+        set<set<int>> eq_device_sets_copy = eq_device_sets;
+        int pairs = EvaluateActiveProbeMc(
+            data, dropped_flows, ntraces, equivalent_devices, src_dst,
+            min_start_time_ms, max_finish_time_ms, eq_device_sets_copy);
+        cout << "Active Probe Mc " << src_dst << " pairs " << pairs << endl;
+        // lock.lock();
+        if (pairs > max_pairs) {
+            best_src_dst = src_dst;
+            max_pairs = pairs;
+        }
+        // lock.unlock();
+    }
+    // do again for the best mc to populate eq_device_sets
+    EvaluateActiveProbeMc(data, dropped_flows, ntraces, equivalent_devices,
+                          best_src_dst, min_start_time_ms, max_finish_time_ms,
+                          eq_device_sets);
+    int nprobes = 10;
+    auto [hsrc, hdst, srcport, dstport] =
+        SrcDstWithMaxDrops(data, dropped_flows, ntraces, min_start_time_ms,
+                           max_finish_time_ms, nopenmp_threads);
+    // if dst is dst_rack, might as well make it the dst host
+    if (!data[0].IsNodeSwitch(hdst) and
+        data[0].hosts_to_racks[hdst] == best_src_dst.second) {
+        best_src_dst.second = hdst;
+    }
+    cout << "best tuple " << best_src_dst << " " << hsrc << " " << hdst << " "
+         << srcport << " " << dstport << endl;
+    ActiveProbeMc *amc =
+        new ActiveProbeMc(best_src_dst.first, best_src_dst.second, srcport,
+                          dstport, nprobes, hsrc, hdst);
+    
+    return pair<ActiveProbeMc *, double>(amc, 1);
 }
 
 pair<ActiveProbeMc *, double>
@@ -1114,7 +1202,7 @@ GetRandomActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces
     ActiveProbeMc *amc =
         new ActiveProbeMc(best_src_dst.first, best_src_dst.second, srcport,
                           dstport, nprobes, hsrc, hdst);
-    return pair<ActiveProbeMc *, double>(amc, get_normalized_score(amc, (double)pairs, minimize_mode));
+    return pair<ActiveProbeMc *, double>(amc, get_normalized_score(amc, (double)pairs, minimize_mode, 1));
 }
 
 pair<RemoveLinkMc *, double>
@@ -1144,6 +1232,9 @@ GetBestLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
             int pairs = GetEqDeviceSetsMeasure(
                 data, dropped_flows, ntraces, equivalent_devices, link,
                 max_finish_time_ms, eq_device_sets_copy);
+            RemoveLinkMc *mc = new RemoveLinkMc(link);
+            int flows_impacted = GetFlowsImpacted(data, max_finish_time_ms, link);
+            pairs = get_normalized_score(mc, double(pairs), minimize_mode, flows_impacted);
             cout << "Removing link " << link << " pairs " << pairs << endl;
             // lock.lock();
             if (pairs > max_pairs) {
@@ -1158,7 +1249,58 @@ GetBestLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                            best_link_to_remove, max_finish_time_ms,
                            eq_device_sets);
     RemoveLinkMc *mc = new RemoveLinkMc(best_link_to_remove);
-    return pair<RemoveLinkMc *, double>(mc, get_normalized_score(mc, (double)max_pairs, minimize_mode));
+    return pair<RemoveLinkMc *, double>(mc, max_pairs);
+}
+
+pair<RemoveLinkMc *, double>
+GetLowestCostLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
+                    set<int> &equivalent_devices, set<set<int>> &eq_device_sets,
+                    set<Link> &used_links, double min_start_time_ms,
+                    double max_finish_time_ms, string minimize_mode, int nopenmp_threads) {
+    int min_flows_impacted = 100000;
+    int final_pairs = 0;
+    // mutex lock;
+    Link best_link_to_remove = Link(-1, -1);
+    // #pragma omp parallel for num_threads(nopenmp_threads)
+    for (Link link : used_links) {
+        if (LinkRemovalForbidden(link.first) || LinkRemovalForbidden(link.second)){
+            continue;
+        }
+        int link_id = data[0].links_to_ids[link];
+        Link rlink = Link(link.second, link.first);
+        if (data[0].IsNodeSwitch(link.first) and
+            data[0].IsNodeSwitch(link.second) and
+            !data[0].IsLinkDevice(link_id)) {
+            for (int ii = 0; ii < ntraces; ii++) {
+                int link_id_ii = data[ii].links_to_ids[link];
+                CheckShortestPathExists(data[ii], max_finish_time_ms,
+                                        dropped_flows[ii], link_id_ii);
+            }
+            set<set<int>> eq_device_sets_copy = eq_device_sets;
+            int pairs = GetEqDeviceSetsMeasure(
+                data, dropped_flows, ntraces, equivalent_devices, link,
+                max_finish_time_ms, eq_device_sets_copy);
+            
+            RemoveLinkMc *mc = new RemoveLinkMc(link);
+            int flows_impacted = GetFlowsImpacted(data, max_finish_time_ms, link);
+            pairs = get_normalized_score(mc, double(pairs), minimize_mode, flows_impacted);
+
+            cout << "Removing link " << link << " pairs " << pairs << endl;
+            // lock.lock();
+            if (flows_impacted <= min_flows_impacted) {
+                best_link_to_remove = link;
+                min_flows_impacted = flows_impacted;
+                final_pairs = pairs;
+            }
+            // lock.unlock();
+        }
+    }
+    // do again for the best link to populate eq_device_sets
+    GetEqDeviceSetsMeasure(data, dropped_flows, ntraces, equivalent_devices,
+                           best_link_to_remove, max_finish_time_ms,
+                           eq_device_sets);
+    RemoveLinkMc *mc = new RemoveLinkMc(best_link_to_remove);
+    return pair<RemoveLinkMc *, double>(mc, min_flows_impacted);
 }
 
 pair<RemoveLinkMc *, double>
@@ -1207,7 +1349,8 @@ GetRandomLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                            eq_device_sets);
     
     RemoveLinkMc *mc = new RemoveLinkMc(random_link_to_remove);
-    return pair<RemoveLinkMc *, double>(mc, get_normalized_score(mc, (double)pairs, minimize_mode));
+    int flows_impacted = GetFlowsImpacted(data, max_finish_time_ms, random_link_to_remove);
+    return pair<RemoveLinkMc *, double>(mc, get_normalized_score(mc, (double)pairs, minimize_mode, flows_impacted));
 
 }
 
