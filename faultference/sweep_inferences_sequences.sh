@@ -8,13 +8,13 @@ mkdir -p ${sweep_logdir}
 
 # Parameters
 start_index=1
-iters=10
+iters=100
 nfails=1
 
 iteration_function() {
     i=$1
 
-    for topo in "B4" "Kdl" #"ASN2k" "UsCarrier"
+    for topo in "campus" #"B4" "Kdl" #"ASN2k" "UsCarrier"
     do
         topo_dir=${sweep_logdir}/${topo}/${i}
         mkdir -p ${topo_dir}
@@ -28,8 +28,11 @@ iteration_function() {
             --outfile ${outfile_sim} > ${topo_dir}/flowsim_initial
         echo "$i Flow simulation done"
 
-        if topo -eq "campus"
-            python3 microchanges-blacklist.py 1720 40
+        if [ "$topo" == "campus" ]; then
+            echo "constraints for campus"
+            python3 microchanges-blacklist.py 1720 10
+        else
+            echo "no constraints"
         fi
 
         for sequence_mode in "Intelligent" "Random"

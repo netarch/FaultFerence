@@ -11,10 +11,10 @@ import matplotlib.font_manager as fm
 
 log_path = sys.argv[1]
 START_INDEX = 1
-ITERATIONS = 200
+ITERATIONS = 100
 MAX_NUM_STEPS = 250 # This is useful while calculating the average equivalent device size per step
-TOPOLOGIES = ["B4", "Kdl", "UsC" , "ASN2k"]
-TOPOLOGIES_NAMES = ["B4", "Kdl", "UsCarrier" , "ASN2k"]
+TOPOLOGIES = ["campus"] #["B4", "Kdl", "UsC" , "ASN2k"]
+TOPOLOGIES_NAMES = ["Production Topology"] #["B4", "Kdl", "UsCarrier" , "ASN2k"]
 
 PLOT_MAPPING = {
     "Intelligent": {
@@ -103,7 +103,7 @@ for topology in TOPOLOGIES:
 
                 # We noticed that processes got killed sometimes due to memory constraints - here's a check for that.
                 logs = open(os.path.join(inference_path, "logs")).read()
-                if "Killed" in logs:
+                if "Killed" in logs :
                     print("WARNING:", topology, iter_string, inference_scheme, sequence_scheme, "- some iterations were killed in this run")
                     continue
                 num_steps = int(open(os.path.join(inference_path, "num_steps")).read())
@@ -139,7 +139,7 @@ for topology in TOPOLOGIES:
                         PRECISION[sequence_scheme][inference_scheme][topology].append(0)
                         RECALL[sequence_scheme][inference_scheme][topology].append(0)
 
-                ALL_STEPS[sequence_scheme][inference_scheme][topology].append(num_steps) # + ((last_devices+1)//2)
+                ALL_STEPS[sequence_scheme][inference_scheme][topology].append(num_steps + ((last_devices+1)//2))
                 LAST_DEVICES[sequence_scheme][inference_scheme][topology].append(last_devices)
                 ALL_DEVICE_SIZES[sequence_scheme][inference_scheme].append(all_devices_sizes)
 
@@ -162,7 +162,7 @@ fm.fontManager.addfont("./gillsans.ttf")
 matplotlib.rcParams.update({'font.size': 24, 'font.family': "GillSans"})
 
 # Plot 1 specific code starts
-fig = plt.figure(figsize=(8, 6.5))
+fig = plt.figure(figsize=(8, 6))
 ax = plt.subplot(1, 1, 1)
 i = 0
 
@@ -197,16 +197,17 @@ for sequence_scheme in AVG_STEPS:
         i +=1
 
 # ax.set_xlabel('Degree')
-ax.set_xlabel("Topology name") #, alpha = 0.5)
-ax.set_ylabel('# Manual micro-actions') #, alpha = 0.5)
+ax.set_xlabel("") #, alpha = 0.5)
+ax.set_ylabel('# Manual micro-actions', fontsize=36) #, alpha = 0.5)
 
 # ax.set_xticks([10, 12, 14, 16, 18, 20]) # Topology degree
 # ax.set_xticks([100, 200, 300, 400, 500]) # Number of switches
 ax.set_xticks(topo_x_axis)
-ax.set_xticklabels(TOPOLOGIES_NAMES) # Number of hosts
+ax.set_xticklabels(TOPOLOGIES_NAMES, fontsize=36) # Number of hosts
 
 # ax.set_yticklabels(["", 10, 20, 30, 40]) # For ft
 # ax.set_yticks([0, 10, 20, 30, 40]) # For ft
+ax.set_yticklabels([0, 1, 2, 3, 4, 5], fontsize=36)
 
 ax.tick_params(axis="both", direction="in", labelcolor="grey", width=3, length=6)
 
@@ -221,9 +222,9 @@ ax.spines["left"].set(color="grey", alpha=0.3)
 ax.spines["right"].set(color="grey", alpha=0.3)
 
 plt.tight_layout()
-legend = plt.legend(fontsize="22", markerscale=0.7, handlelength=0.7, handletextpad=0.4, framealpha=0.3)
+legend = plt.legend(fontsize="40", markerscale=0.7, handlelength=0.7, handletextpad=0.4, framealpha=0.3)
 
-plt.savefig("figures/steps-WAN.png")
+# plt.savefig("figures/steps-WAN.png")
 plt.savefig("figures/steps-WAN.pdf")
 
 # Plot 1 specific code ends
