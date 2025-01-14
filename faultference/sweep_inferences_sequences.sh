@@ -30,10 +30,9 @@ iteration_function() {
 
         if [ "$topo" == "campus" ]; then
             echo "constraints for campus"
-            python3 microchanges-blacklist.py 1720 10
+            python3 microchanges-blacklist.py 1720 40
         else
             echo "no constraints"
-        fi
 
         for sequence_mode in "Intelligent" "Random"
         do
