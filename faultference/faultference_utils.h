@@ -90,6 +90,12 @@ GetBestLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                     double max_finish_time_ms, string minimize_mode, int nopenmp_threads);
 
 pair<RemoveLinkMc *, double>
+GetLowestCostLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
+                    set<int> &equivalent_devices, set<set<int>> &eq_device_sets,
+                    set<Link> &used_links, double min_start_time_ms,
+                    double max_finish_time_ms, string minimize_mode, int nopenmp_threads);
+
+pair<RemoveLinkMc *, double>
 GetRandomLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                       set<int> &equivalent_devices,
                       set<set<int>> &eq_device_sets, set<Link> &used_links,
@@ -116,6 +122,13 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                      double min_start_time_ms, double max_finish_time_ms,
                      string minimize_mode, int nopenmp_threads);
 
+
+pair<ActiveProbeMc*, double>
+GetLowestCostActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
+                     set<int> &equivalent_devices,
+                     set<set<int>> &eq_device_sets, set<Link> &used_links,
+                     double min_start_time_ms, double max_finish_time_ms,
+                     string minimize_mode, int nopenmp_threads);
 
 pair<ActiveProbeMc*, double>
 GetRandomActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
