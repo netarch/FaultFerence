@@ -8,13 +8,13 @@ mkdir -p ${sweep_logdir}
 
 # Parameters
 start_index=1
-iters=100
+iters=1
 nfails=1
 
 iteration_function() {
     i=$1
 
-    for topo in "campus" #"B4" "Kdl" #"ASN2k" "UsCarrier"
+    for topo in "ft_deg10_sw125_svr250_os3_bidir_false" "ft_deg12_sw180_svr432_os3_bidir_false"  #"B4" "Kdl" #"ASN2k" "UsCarrier"
     do
         topo_dir=${sweep_logdir}/${topo}/${i}
         mkdir -p ${topo_dir}
