@@ -261,6 +261,8 @@ class Topology(object):
             src_rack = self.host_rack_map[src]
             dst_rack = self.host_rack_map[dst]
             flowsize = self.GetParetoFlowSize()
+            srcport = random.randint(10000, 30000)
+            dstport = random.randint(10000, 30000)
             flows.append(Flow(src, dst, flowsize, srcport, dstport))
         return flows
 
@@ -833,7 +835,11 @@ class Topology(object):
         else:
             flows = self.ReadFlowsFromFile(flows_file)
             nflows = len(flows)
-        all_sw_pair_paths = self.GetAllSwitchPairPaths2()
+
+        src_nodes = [
+            v for v in self.G.nodes() if v < HOST_OFFSET
+        ]
+        all_sw_pair_paths = self.GetAllSwitchPairPaths2(src_nodes, src_nodes)
         self.PrintPaths(all_sw_pair_paths)
         packetsize = 1500  # bytes
         sumflowsize = 0

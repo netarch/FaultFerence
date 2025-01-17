@@ -24,7 +24,7 @@ iteration_function() {
         python3 ../flow_simulator/flow_simulator.py \
             --network_file ${topofile} \
             --nfailures ${nfails} \
-            --flows_file ${topo_dir}/flows \
+            --flows_file NA \
             --outfile ${outfile_sim} > ${topo_dir}/flowsim_initial
         echo "$i Flow simulation done"
 
@@ -33,6 +33,7 @@ iteration_function() {
             python3 microchanges-blacklist.py 1720 40
         else
             echo "no constraints"
+        fi
 
         for sequence_mode in "Intelligent" "Random"
         do
