@@ -11,6 +11,7 @@ import networkx as nx
 
 HOST_OFFSET = 10000
 K_SHORTEST = 0
+DLB = False
 
 
 def TupleHash2(t):
@@ -33,12 +34,14 @@ class Flow(object):
         dstport=None,
         header_src=None,
         header_dst=None,
+        start_time=None,
     ):
         self.src = src
         self.dst = dst
         self.header_src = header_src
         self.header_dst = header_dst
         self.flowsize = flowsize
+        self.start_time = start_time
         if srcport == None:
             srcport = random.randint(1000, 60000)
         if dstport == None:
