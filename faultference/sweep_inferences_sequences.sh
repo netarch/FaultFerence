@@ -14,7 +14,7 @@ nfails=1
 iteration_function() {
     i=$1
 
-    for topo in "ft_deg10_sw125_svr250_os3_bidir_false" "ft_deg12_sw180_svr432_os3_bidir_false"  #"B4" "Kdl" #"ASN2k" "UsCarrier"
+    for topo in "ft_deg10_sw125_svr250_os3_bidir_false" #"ft_deg12_sw180_svr432_os3_bidir_false"  #"B4" "Kdl" #"ASN2k" "UsCarrier"
     do
         topo_dir=${sweep_logdir}/${topo}/${i}
         mkdir -p ${topo_dir}
@@ -35,9 +35,9 @@ iteration_function() {
             echo "no constraints"
         fi
 
-        for sequence_mode in "Intelligent" "Random"
+        for sequence_mode in "Intelligent" # "Random"
         do
-            for inference_mode in "Flock" "Naive"
+            for inference_mode in "Flock" # "Naive"
             do
                 for minimize_mode in "Steps" #"Cost" "Time" 
                 do
@@ -51,7 +51,7 @@ iteration_function() {
     done
 }
 
-for i in $(seq $start_index $((start_index+iters)))
+for i in $(seq $start_index $((start_index+iters-1)))
 do
     iteration_function $i &
     if [[ $(($i%10)) -eq 0 ]]; then

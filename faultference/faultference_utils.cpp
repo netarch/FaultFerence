@@ -210,6 +210,7 @@ void AggLogData(LogData *data, int ntraces, LogData &result,
 bool RunFlock(LogData &data, string fail_file, double min_start_time_ms,
               double max_finish_time_ms, vector<double> &params,
               int nopenmp_threads) {
+
     BayesianNet estimator;
     estimator.SetParams(params);
     PATH_KNOWN = false;
@@ -219,10 +220,13 @@ bool RunFlock(LogData &data, string fail_file, double min_start_time_ms,
     estimator.SetLogData(&data, max_finish_time_ms, nopenmp_threads);
 
     // map[(src, dst)] = (failed_component(link/device), failparam)
+    //!TODO: this not implemented for silent packet drops
+    assert (false);
     map<PII, pair<int, double>> failed_comps = ReadFailuresBlackHole(fail_file);
 
     Hypothesis localized_links;
     auto start_localization_time = chrono::high_resolution_clock::now();
+    cout << "comes here 1" << endl;
     estimator.LocalizeFailures(min_start_time_ms, max_finish_time_ms,
                                localized_links, nopenmp_threads);
 
@@ -333,7 +337,9 @@ set<int> LocalizeViaFlock(LogData *data, int ntraces, string fail_file,
     BayesianNet estimator;
 
     map<string, vector<double>> params;
-    params["ft_deg10"] = {1.0 - 0.49, 5.0e-3, -10.0};
+    //!TODO: param calibration
+    //params["ft_deg10"] = {1.0 - 0.49, 5.0e-3, -10.0};
+    params["ft_deg10"] = {1.0 - 0.005, 5.0e-4, -10.0};
     params["ft_deg12"] = {1.0 - 0.49, 6.0e-4, -20.0};
     params["ft_deg14"] = {1.0 - 0.41, 1.5e-4, -20.0};
     params["ft_deg16"] = {1.0 - 0.49, 1.0e-6, -10.0};
@@ -721,12 +727,12 @@ void LocalizeFailure(vector<pair<string, string>> &in_topo_traces,
             used_links, min_start_time_ms, max_finish_time_ms, sequence_mode,
             minimize_mode, nopenmp_threads);
 
+        cout << "Dilly dally: " << *mc << " score " << curr_score << endl;
+
         if (curr_score - last_score < SCORE_THRESHOLD or curr_score < 1.0e-8)
             break;
 
-        cout << "comes here" << endl;
         cout << "Best MicroChange: " << *mc << " score " << curr_score << endl;
-        cout << "and also here" << endl;
         last_score = curr_score;
 
         max_iter--;
@@ -742,12 +748,14 @@ GetMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                    set<Link> &used_links, double min_start_time_ms,
                    double max_finish_time_ms, string sequence_mode,
                    string minimize_mode, int nopenmp_threads) {
+
     pair<MicroChange *, double> result;
     pair<MicroChange *, double> result_ap, result_lr;
     set<set<int>> eq_device_sets_ap = eq_device_sets;
     set<set<int>> eq_device_sets_lr = eq_device_sets;
     int TOTAL_OPTIONS = 2;
     if (sequence_mode == "Intelligent"){
+        cout << "Getting best microchange " << dropped_flows->size() << endl;
         result_ap = GetBestActiveProbeMc(
             data, dropped_flows, ntraces, eq_devices, eq_device_sets_ap,
             used_links, min_start_time_ms, max_finish_time_ms, minimize_mode, nopenmp_threads);
@@ -999,6 +1007,7 @@ int EvaluateActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows,
     int pairs = devices_filtered.size() *
                 (equivalent_devices.size() - devices_filtered.size());
     eq_device_sets.insert(devices_filtered);
+    cout << "EvaluateAPMc " << src_dst << " " << pairs << " " << devices_filtered << endl;
     return pairs;
 }
 

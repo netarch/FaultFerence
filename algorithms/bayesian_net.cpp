@@ -246,15 +246,10 @@ void BayesianNet::SearchHypothesesJle(
                                     max_finish_time_ms, device_level,
                                     nopenmp_threads);
 
-    /*
     for(int link_id=0; link_id<data->inverse_links.size(); link_id++){
-        Link l1 = Link(1, 7), l2 = Link(7, 1);
-        //if (data->inverse_links[link_id]==l1 or
-    data->inverse_links[link_id]==l2) cout << "Initial likelihoods " <<
-    data->inverse_links[link_id] << " " << likelihood_scores[0][link_id] <<
-    endl;
+        cout << "Initial likelihoods " << data->inverse_links[link_id]
+             << " " << likelihood_scores[0][link_id] << endl;
     }
-    */
     if (VERBOSE) {
         cout << "Finished hypothesis search for 1 failure in "
              << GetTimeSinceSeconds(start_init_time) << " seconds" << endl;
@@ -284,7 +279,7 @@ void BayesianNet::SearchHypothesesJle(
             assert(likelihood_scores[ii].size() == ncomponents);
             GetIndicesOfTopK(likelihood_scores[ii],
                              NUM_TOP_HYPOTHESIS_AT_EACH_STAGE, top_components,
-                             base_hypothesis, true); //!TODO: remove true
+                             base_hypothesis, false); //!TODO: true for device_level
             for (int cmp : top_components) {
                 assert(base_hypothesis->find(cmp) == base_hypothesis->end());
                 base_hypothesis->insert(cmp);
@@ -475,13 +470,17 @@ void BayesianNet::LocalizeFailuresHelper(double min_start_time_ms,
     // all_hypotheses, nopenmp_threads);
     vector<pair<double, Hypothesis *>> likelihood_hypotheses;
     for (auto &it : all_hypotheses) {
+        cout << "Jle output " << *it.first << " " << it.second << endl;
         likelihood_hypotheses.push_back(make_pair(it.second, it.first));
     }
+    cout << "Printing done " << endl;
     sort(likelihood_hypotheses.begin(), likelihood_hypotheses.end(),
          greater<pair<double, Hypothesis *>>());
+    cout << "Sorting done " << endl;
     localized_components.clear();
     double highest_likelihood = likelihood_hypotheses[0].first;
     set<Hypothesis *> candidate_hypothesis;
+    cout << " Comes till here, now printing likely candidates " << endl;
     for (int i =
              min((int)likelihood_hypotheses.size(), N_MAX_K_LIKELIHOODS) - 1;
          i >= 0; i--) {
@@ -653,6 +652,7 @@ void BayesianNet::AddContributionsFromThreads(vector<double> *contributions,
         //! TODO: Try changing 2d array from (threads X components) to
         //! (components X threads)
         for (int t = 0; t < nopenmp_threads; t++) {
+            assert (!isnan(contributions[t][cmp]));
             result[cmp] += contributions[t][cmp];
         }
     }
@@ -1252,6 +1252,8 @@ void BayesianNet::ComputeInitialLikelihoodsHelper(
             }
         }
         long double intermediate_val = flow->GetCachedIntermediateValue();
+        assert (!isnan(intermediate_val));
+        cout << "Flow intermediate_val " << intermediate_val << endl;
         for (Path *link_path : *flow_paths) {
             path_ptr =
                 PathPointerSelect(flow, *link_path, device_path, device_level);
@@ -1261,6 +1263,13 @@ void BayesianNet::ComputeInitialLikelihoodsHelper(
                     likelihoods[thread_num][cmp] += BnfWeighted(
                         naffected, npaths, naffected_r, npaths_r, weight.first,
                         weight.second, intermediate_val);
+                    /*
+                    // !TODO: delete
+                    cout << "likelihoods[thread_num][cmp] " << likelihoods[thread_num][cmp] 
+                         << " " << naffected << " " << npaths << " " << naffected_r << " "
+                         << npaths_r << " " << weight.first << " " << weight.second << " " 
+                         << intermediate_val << endl;
+                    */
                 }
                 // Reset counter so that likelihood for component isn't counted
                 // again
@@ -1451,6 +1460,9 @@ inline long double BayesianNet::GetBnfWeightedUnconditionalIntermediateValue(
     //                            ---------------------->
     long double ret = pow((long double)((1.0 - p1) / p2), weight.second) *
                       pow(p1 / (1.0 - p2), weight.first);
+    //!TODO: delete
+    //cout << " computing intermediate vals " << ret << " "  << weight << " "
+    //     << p1 << " " << p2 << " " << (1.0 - p1)/p2 << " " << p1/(1.0 - p2) << endl;
     //! TODO TODO TODO: precision goes out of long double range
     ret = min(ret, std::numeric_limits<long double>::max());
     return ret;

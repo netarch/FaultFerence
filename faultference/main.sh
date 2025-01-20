@@ -58,6 +58,7 @@ do
     ./estimator_agg 0.0 1000000.01 ${nthreads} ${inputs} > ${localization_logs}/iter_${iter}
     new_eq_devices=`cat ${localization_logs}/iter_${iter} | grep "equivalent devices" | grep "equivalent devices" | sed 's/equivalent devices //' | sed 's/size.*//'`
     new_eq_size=`echo ${new_eq_devices} | sed 's/]//'g | sed 's/\[//'g | awk -F',' '{print NF}'`
+    echo "new_eq_devices ${new_eq_devices}"
 
     if [[ "${new_eq_devices}" == "${eq_devices}" ]]
     then 
@@ -75,6 +76,7 @@ do
     eq_size=${new_eq_size}
     echo "Iter: $iter, Size: ${new_eq_size}, Devices: ${new_eq_devices}" >> ${eq_devices_file}
     micro_change_happening=$(cat ${localization_logs}/iter_${iter} | grep "Best MicroChange" | cut -d " " -f 5)
+    echo "Micro change happening: ${micro_change_happening}" 
     case $micro_change_happening in 
         REMOVE_LINK)
             cat ${localization_logs}/iter_${iter} | grep "Best MicroChange" | grep "REMOVE_LINK" | sed 's/[^[0-9\.]\[*/ /g' | sed 's/[ ][ ]*/ /g' | awk '{print $1" "$2}' | head -n${max_changes} > ${micro_change_dir}/iter_${iter}

@@ -28,7 +28,7 @@ args = parser.parse_args()
 
 
 HOST_OFFSET = 10000
-BLACK_HOLE = True
+BLACK_HOLE = False
 
 # random.seed(42)
 # np.random.seed(42)
@@ -53,6 +53,6 @@ if BLACK_HOLE:
     nflows, sumflowsize = topo.PrintLogsBlackHole(args)
 else:
     # nflows, sumflowsize = topo.PrintLogsMisconfiguredACL(args.nfailures, args.fail_file, args.flows_file)
-    nflows, sumflowsize = topo.PrintLogsSilentDrop(args.nfailures, args.flows_file)
+    nflows, sumflowsize = topo.PrintLogsSilentDrop(args)
 
 print("Sum flow size: ", sumflowsize, "Numflows", nflows)

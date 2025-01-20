@@ -179,6 +179,13 @@ class Topology(object):
         edges += [(v, u) for (u, v) in edges]
         random.shuffle(edges)
         self.failed_components = edges[0:nfailed_links]
+        print("Edges", edges, self.failed_components)
+
+    def SetFailedDevicesSilentDrop(self, nfailed_devices):
+        edges = [(u, u) for u in self.G.nodes if u < HOST_OFFSET]
+        random.shuffle(edges)
+        self.failed_components = edges[0:nfailed_devices]
+        print("Edges", edges, self.failed_components)
 
     def PrintPath(self, prefix, path, out=sys.stdout):
         s = prefix
@@ -194,7 +201,7 @@ class Topology(object):
         shape = 1.05
         scale = mean_bytes * (shape - 1) / shape
         flowsize = (np.random.pareto(shape) + 1) * scale
-        while flowsize > 100 * 1024 * 1024:
+        while flowsize > 10 * 1024 * 1024:
             flowsize = (np.random.pareto(shape) + 1) * scale
         return int(flowsize)
 
@@ -363,6 +370,22 @@ class Topology(object):
                     fail_prob[failed_component] = param
         return fail_prob
 
+    def GetDropProbSilentDropFromFile(self, args):
+        assert args.fails_from_file
+        fail_prob = dict()
+        with open(args.fail_file, "r") as ffile:
+            for line in ffile.readlines():
+                tokens = line.split()
+                if len(tokens) == 4:
+                    src = int(tokens[1])
+                    dst = int(tokens[2])
+                    param = float(tokens[3])
+                    failed_component = (src, dst)
+                    print("Read failed component from file", failed_component, param)
+                    self.failed_components.append(failed_component)
+                    fail_prob[failed_component] = param
+        return fail_prob
+
     def WriteBlackHoleFailsToFile(self, fail_prob, fail_file):
         fail_file = open(fail_file, "w+")
         for device, src, dst in fail_prob:
@@ -372,6 +395,17 @@ class Topology(object):
                 dst,
                 device,
                 fail_prob[(device, src, dst)],
+                file=fail_file,
+            )
+
+    def WriteSilentDropFailsToFile(self, fail_prob, fail_file):
+        fail_file = open(fail_file, "w+")
+        for src, dst in fail_prob:
+            print(
+                "Failing_component",
+                src,
+                dst,
+                fail_prob[(src, dst)],
                 file=fail_file,
             )
 
@@ -486,6 +520,7 @@ class Topology(object):
         fail_prob = dict()
         edges = [(u, v) for (u, v) in self.G.edges]
         edges += [(v, u) for (u, v) in edges]
+        edges += [(u, u) for u in self.G.nodes if u < HOST_OFFSET]
         for edge in edges:
             if edge in self.failed_components:
                 fail_prob[edge] = random.uniform(0.002, 0.020)
@@ -827,17 +862,30 @@ class Topology(object):
             sumflowsize += flow.flowsize
         return nflows, sumflowsize
 
-    def PrintLogsSilentDrop(self, nfailed_links, flows_file="NA"):
-        self.SetFailedLinksSilentDrop(nfailed_links)
-        fail_prob = self.GetDropProbSilentDrop()
-        nflows = 100 * self.nservers
-        flows = []
-        if flows_file == "NA":
-            # flows = self.GetFlowsSkewed(nflows)
-            flows = self.GetFlowsUniform(nflows)
+    def PrintLogsSilentDrop(self, args):
+        fail_prob = dict()
+        if args.fails_from_file:
+            fail_prob = self.GetDropProbSilentDropFromFile(args)
         else:
-            flows = self.ReadFlowsFromFile(flows_file)
-            nflows = len(flows)
+            # self.SetFailedLinksSilentDrop(args.nfailures)
+            self.SetFailedDevicesSilentDrop(args.nfailures)
+            fail_prob = self.GetDropProbSilentDrop()
+            self.WriteSilentDropFailsToFile(fail_prob, args.fail_file)
+   
+        # print("Fail prob", fail_prob)
+        nflows = 200 * self.nservers
+        flows = []
+        print("PrintLogsSilentDrop read failures", args.flows_file)
+        flows = self.GetFlowsUniform(nflows)
+        # flows = self.ReadFlowsFromFile(args.flows_file)
+        nflows = len(flows)
+
+        active_probes = []
+        if args.active_probes_file is not None:
+            active_probes = self.ReadActiveProbesFromFile(args.active_probes_file)
+
+        print("Active probes", len(active_probes))
+        print("comes here", args.flows_file, nflows)
 
         src_nodes = [
             v for v in self.G.nodes() if v < HOST_OFFSET
@@ -847,7 +895,7 @@ class Topology(object):
         packetsize = 1500  # bytes
         sumflowsize = 0
         curr = 0
-        for flow in flows:
+        for flow in itertools.chain(flows, active_probes):
             curr += 1
             if curr % 50000 == 0:
                 print("Finished", curr, "flows")
@@ -856,14 +904,14 @@ class Topology(object):
             # print(src, dst, flowsize)
             packets_sent = math.ceil(flow.flowsize / packetsize)
             if flow.IsFlowActive():
-                packets_sent = 40
+                packets_sent = 100
             # path_taken = random.choice(list(nx.all_shortest_paths(G, source=src_rack, target=dst_rack)))
             packets_dropped = 0
             for i in range(packets_sent):
                 for k in range(0, len(complete_path) - 1):
                     u = complete_path[k]
                     v = complete_path[k + 1]
-                    if random.random() <= fail_prob[(u, v)]:
+                    if (u < HOST_OFFSET and random.random() <= fail_prob[(u, u)]) or random.random() <= fail_prob[(u, v)]:
                         packets_dropped += 1
                         break
             print(
