@@ -10,7 +10,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCHEMES = ("FIVES", "Operator-PA", "Drain-Sweep")
-METRICS = ("steps", "precision", "recall", "localized", "time_s", "lost_gb",
+METRICS = ("eq0", "steps", "precision", "recall", "localized", "time_s", "lost_gb",
            "n_probe", "n_mirror", "n_drain")
 Z90 = 1.6448536269514722
 
@@ -33,16 +33,24 @@ def main():
             out[scen][s]["loss_frac"] = {"pooled": float(lost.sum() / offered.sum()), "ci90_lo": float(lo),
                                          "ci90_hi": float(hi)}
     json.dump(out, open(os.path.join(HERE, "tb_summary.json"), "w"), indent=1)
-    print("| Scenario | Scheme | n | Steps | Precision | Recall | Loc. rate | Time (s) | Loss frac (pooled, 90% CI) | Lost (GB) | probe/mirror/drain |")
-    print("|---|---|---|---|---|---|---|---|---|---|---|")
+    lines = [
+        "| Scenario | Scheme | n | Initial eq. (|E_0|) | Steps | Precision | Recall | Loc. rate | Time (s) | Loss frac (pooled, 90% CI) | Lost (GB) | probe/mirror/drain |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
     for scen, e in out.items():
         for s in SCHEMES:
             v = e[s]
             f = lambda m, d=2: f"{v[m]['mean']:.{d}f}±{v[m]['ci90']:.{d}f}"
-            print(f"| {scen} | {s} | {e['n']} | {f('steps')} | {f('precision', 3)} | {f('recall', 3)} | "
-                  f"{v['localized']['mean']:.3f} | {f('time_s', 1)} | {v['loss_frac']['pooled']:.4f} "
-                  f"[{v['loss_frac']['ci90_lo']:.4f}, {v['loss_frac']['ci90_hi']:.4f}] | {f('lost_gb', 2)} | "
-                  f"{v['n_probe']['mean']:.2f}/{v['n_mirror']['mean']:.2f}/{v['n_drain']['mean']:.2f} |")
+            lines.append(
+                f"| {scen} | {s} | {e['n']} | {f('eq0')} | {f('steps')} | {f('precision', 3)} | {f('recall', 3)} | "
+                f"{f('localized', 3)} | {f('time_s', 1)} | {v['loss_frac']['pooled']:.4f} "
+                f"[{v['loss_frac']['ci90_lo']:.4f}, {v['loss_frac']['ci90_hi']:.4f}] | {f('lost_gb', 2)} | "
+                f"{f('n_probe')}/{f('n_mirror')}/{f('n_drain')} |"
+            )
+    table_md = "\n".join(lines) + "\n"
+    with open(os.path.join(HERE, "tb_table.md"), "w") as fp:
+        fp.write(table_md)
+    print(table_md, end="")
 
 
 if __name__ == "__main__":
