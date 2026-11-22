@@ -1,6 +1,6 @@
 """Generate alice/bob EOS configs and the cabling port map for a testbed topology spec.
 
-Usage: python3 genconfig.py topologies/fattree_k4.json [--outdir configs/fattree_k4]
+Usage: python3 genconfig.py topologies/fattree_k8_pruned.json [--outdir configs/fattree_k8_pruned]
 Writes <outdir>/alice.config, <outdir>/bob.config and <outdir>/wiring.txt.
 """
 import argparse

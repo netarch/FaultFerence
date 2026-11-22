@@ -3,8 +3,8 @@
 The fives planner and Bayesian inference drive the trial; each step applies a perturbation (link drain,
 mirror session, or host probe), measures one telemetry window on the hardware, and reverts it.
 
-  python3 run_trial.py topologies/fattree_k4.json --scenario silent_drop --culprit agg3 --inject \
-      --window-s 20 --flows 64 --latency-threshold-ms 1.0 --out results/trial_agg3.json [--dry-run]
+  python3 run_trial.py topologies/fattree_k8_pruned.json --scenario silent_drop --culprit agg_a2 --inject \
+      --window-s 20 --flows 100 --latency-threshold-ms 1.0 --out results/trial_agg_a2.json [--dry-run]
 
 --culprit is the ground truth used to score the result (and the VRF faulted when --inject is given).
 With --dry-run nothing touches hardware: commands are printed and telemetry comes from the fives
@@ -73,7 +73,12 @@ class TestbedSystem(NetworkSystem):
         self.topo, self.ex, self.args = topo, ex, args
         self.ids = topo.node_ids()
         self.vrf_of = {i: v for v, i in self.ids.items()}
-        self.host_on = {self.ids[h.vrf]: h for h in topo.hosts}
+        self.hosts_on = {}
+        for h in topo.hosts:
+            tid = self.ids[h.vrf]
+            if tid not in self.hosts_on:
+                self.hosts_on[tid] = []
+            self.hosts_on[tid].append(h)
         self.window_idx = 0
 
     def simulate_window(self, failure, perturbation, rng, flows_per_pair=400, packets_per_flow=25):
@@ -87,12 +92,12 @@ class TestbedSystem(NetworkSystem):
         else:
             for s in self.topo.hosts:
                 for d in self.topo.hosts:
-                    if d.name != s.name:
+                    if d.vrf != s.vrf:
                         ex.local(f"sudo ip netns exec {s.name} hping3 -S -p {C.IPERF_BASE_PORT} -c {a.flows} "
                                  f"-i u2000 {d.ip} > {outdir}/syn_{s.name}_{d.name}.txt 2>&1 || true")
         probe_out = None
         if isinstance(perturbation, ActiveProbe):
-            src, dst = self.host_on[perturbation.src_node], self.host_on[perturbation.dst_node]
+            src, dst = self.hosts_on[perturbation.src_node][0], self.hosts_on[perturbation.dst_node][0]
             hp, tr = C.probe(src.name, dst.ip, 40000 + w, perturbation.num_probes)
             probe_out = (ex.local(hp + " || true"), ex.local(tr), src.vrf)
         pcap = None
@@ -121,10 +126,10 @@ class TestbedSystem(NetworkSystem):
 
     def _measure(self, p, outdir, probe_out, pcap) -> TelemetryWindow:
         a = self.args
-        recs = []
+        by_pair = {}
         for s in self.topo.hosts:
             for d in self.topo.hosts:
-                if d.name == s.name:
+                if d.vrf == s.vrf:
                     continue
                 pair = (self.ids[s.vrf], self.ids[d.vrf])
                 if a.scenario == "silent_drop":
@@ -134,9 +139,16 @@ class TestbedSystem(NetworkSystem):
                 else:
                     sent, bad = parse_hping(open(f"{outdir}/syn_{s.name}_{d.name}.txt").read(),
                                             a.latency_threshold_ms, a.scenario)
-                recs.append(TelemetryRecord(pair=pair, is_probe=False, is_mirror=False, mirror_node=-1,
-                                            packets_sent=int(sent), packets_bad=int(bad),
-                                            path_weights=self.paths_under_perturbation(pair, p), traced_path=()))
+                if pair not in by_pair:
+                    by_pair[pair] = [0, 0]
+                by_pair[pair][0] += int(sent)
+                by_pair[pair][1] += int(bad)
+        recs = [
+            TelemetryRecord(pair=pair, is_probe=False, is_mirror=False, mirror_node=-1,
+                            packets_sent=counts[0], packets_bad=counts[1],
+                            path_weights=self.paths_under_perturbation(pair, p), traced_path=())
+            for pair, counts in by_pair.items()
+        ]
         if probe_out is not None:
             hp_out, tr_out, src_vrf = probe_out
             sent, bad = parse_hping(hp_out, a.latency_threshold_ms, "blackhole" if a.scenario != "high_latency"
@@ -148,8 +160,9 @@ class TestbedSystem(NetworkSystem):
                                         packets_sent=sent, packets_bad=bad,
                                         path_weights=tuple((sp, 1.0 / len(subs)) for sp in subs), traced_path=traced))
         if pcap is not None:
-            src_ip, dst_ip = self.host_on[p.flow_pair[0]].ip, self.host_on[p.flow_pair[1]].ip
-            flt = f"ip.src=={src_ip} && ip.dst=={dst_ip}"
+            srcs = " || ".join(f"ip.src=={h.ip}" for h in self.hosts_on[p.flow_pair[0]])
+            dsts = " || ".join(f"ip.dst=={h.ip}" for h in self.hosts_on[p.flow_pair[1]])
+            flt = f"({srcs}) && ({dsts})"
             n_pkts = int(self.ex.local(f"tshark -r {pcap} -Y '{flt}' | wc -l"))
             n_lost = int(self.ex.local(f"tshark -r {pcap} -Y '{flt} && tcp.analysis.lost_segment' | wc -l"))
             through = [pth for pth in self.shortest_paths(*p.flow_pair) if p.node in pth]

@@ -165,21 +165,21 @@ def netns_setup(topo: TestbedTopology) -> List[str]:
 
 
 def iperf_servers(topo: TestbedTopology) -> List[str]:
-    """One iperf3 server per (destination, source) pair: iperf3 serves one client at a time."""
+    """One iperf3 server per cross-ToR (destination, source) host pair: iperf3 serves one client at a time."""
     cmds = []
-    for di, d in enumerate(topo.hosts):
+    for d in topo.hosts:
         for si, s in enumerate(topo.hosts):
-            if si != di:
+            if s.vrf != d.vrf:
                 cmds.append(f"sudo ip netns exec {d.name} iperf3 -s -D -p {IPERF_BASE_PORT + si}")
     return cmds
 
 
 def iperf_clients(topo: TestbedTopology, seconds: int, flows: int, outdir: str) -> List[str]:
-    """All-to-all: every host runs `flows` parallel TCP streams (random source ports) to every other host."""
+    """Cross-ToR traffic: every host runs `flows` parallel TCP streams (random source ports) to every remote-ToR host."""
     cmds = []
     for si, s in enumerate(topo.hosts):
         for d in topo.hosts:
-            if d.name != s.name:
+            if d.vrf != s.vrf:
                 cmds.append(f"sudo ip netns exec {s.name} iperf3 -c {d.ip} -p {IPERF_BASE_PORT + si} -P {flows} "
                             f"-t {seconds} -J > {outdir}/iperf_{s.name}_{d.name}.json &")
     return cmds + ["wait"]

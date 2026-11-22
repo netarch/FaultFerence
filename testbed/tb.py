@@ -3,13 +3,13 @@
 Every subcommand takes --dry-run, which prints the exact commands / config snippets without touching
 switches or hosts.
 
-  tb.py TOPO deploy  --configs configs/fattree_k4
+  tb.py TOPO deploy  --configs configs/fattree_k8_pruned
   tb.py TOPO hosts
-  tb.py TOPO traffic --seconds 30 --flows 64 --outdir results/run1
-  tb.py TOPO fault   {inject,revert} --vrf agg3 --mode {blackhole,silent_drop,high_latency}
-  tb.py TOPO drain   {down,up} --link agg3 core2
-  tb.py TOPO mirror  {add,remove} --vrf agg3
-  tb.py TOPO mirror  capture --vrf agg3 --seconds 10 --pcap results/run1/agg3.pcap
+  tb.py TOPO traffic --seconds 30 --flows 100 --outdir results/run1
+  tb.py TOPO fault   {inject,revert} --vrf agg_a2 --mode {blackhole,silent_drop,high_latency}
+  tb.py TOPO drain   {down,up} --link agg_a2 core_8
+  tb.py TOPO mirror  {add,remove} --vrf agg_a2
+  tb.py TOPO mirror  capture --vrf agg_a2 --seconds 10 --pcap results/run1/agg_a2.pcap
   tb.py TOPO probe   --src alice-host --dst bob-host --sport 40001 --count 200
 """
 import argparse

@@ -5,7 +5,8 @@ perturbations, and run FIVES localization trials on the hardware.
 
 | File | Purpose |
 |---|---|
-| `topologies/fattree_k4.json` | k=4 fat tree (20 VRFs, 32 links), hosts on tor0/tor2/tor4/tor6 (one per pod) |
+| `topologies/fattree_k8_pruned.json` | default: two-ToR path subgraph of a k=8 fat tree (26 VRFs, 40 links, 16 ECMP paths), hosts on `tor_a` (alice) and `tor_b` (bob) |
+| `topologies/fattree_k4.json` | alternative: full k=4 fat tree (20 VRFs, 32 links), hosts on tor0/tor2/tor4/tor6 (one per pod) |
 | `topologies/ft_k4.json` | the original `ft_k4` edgelist (15 VRFs, 19 links), same output as the old genconfig.py |
 | `genconfig.py` | topology JSON -> `configs/<name>/{alice,bob}.config` + `wiring.txt` (port map) |
 | `tb.py` | deploy configs, set up host netns, run traffic, inject/revert faults, drain links, mirror, probe |
@@ -23,79 +24,81 @@ and touches nothing. Run everything from this directory with Python 3 (needs `ne
   `ssh bob` (login shell = EOS CLI) with clean-slate checkpoints `alice-clean-slate` / `bob-clean-slate`.
 * One Linux traffic server with four NICs, each cabled to a switch port and isolated in a netns:
 
-| Host (netns) | NIC | Switch port | Address | Gateway |
-|---|---|---|---|---|
-| alice-host | enp4s0f1 | alice Ethernet1 | 192.168.100.2/24 | 192.168.100.1 |
-| alice-host2 | enp76s0f1 | alice Ethernet14 | 192.168.150.2/24 | 192.168.150.1 |
-| bob-host | enp76s0f0 | bob Ethernet1 | 192.168.200.2/24 | 192.168.200.1 |
-| bob-host2 | enp13s0f1 | bob Ethernet18 | 192.168.250.2/24 | 192.168.250.1 |
+| Host (netns) | NIC | Switch port | VRF (`fattree_k8_pruned`) | Address | Gateway |
+|---|---|---|---|---|---|
+| alice-host | enp4s0f1 | alice Ethernet1 | tor_a | 192.168.100.2/24 | 192.168.100.1 |
+| alice-host2 | enp76s0f1 | alice Ethernet14 | tor_a | 192.168.150.2/24 | 192.168.150.1 |
+| bob-host | enp76s0f0 | bob Ethernet1 | tor_b | 192.168.200.2/24 | 192.168.200.1 |
+| bob-host2 | enp13s0f1 | bob Ethernet18 | tor_b | 192.168.250.2/24 | 192.168.250.1 |
 
 Each virtual switch is a VRF. A virtual link is a physical cable: between EthernetN on alice and
 EthernetN on bob when its two VRFs live on different switches, or a loopback cable between two ports of
 the same switch otherwise. Every link is a routed /30 from 172.31.0.0/16; routing is static ECMP (all
 shortest-path next hops to every host /24).
 
-## Topology: k=4 fat tree
+## Topology: pruned k=8 fat tree
 
-46 ports per switch remain after the host ports, so at most 46 VRF links fit (92 free ports, 2 per
-link). With hosts on four ToRs in four different pods:
+46 ports per switch remain after the two host ports, so at most 46 inter-VRF links fit (92 free ports,
+2 per link). A full k=8 fat tree has 80 switches and 256 links, far above budget, while a full k=4 fat
+tree (`topologies/fattree_k4.json`: 20 VRFs, 32 links, 34 ports/switch) has only 4 ECMP paths between
+pods. Pruning a k=8 fat tree to the switches and links on shortest paths between a source pod's ToR
+(`tor_a` on `alice`) and a destination pod's ToR (`tor_b` on `bob`) preserves the full 5-hop, 16-way
+ECMP path fanout of k=8 within the port budget:
 
-* k=4 fat tree: 8 ToR + 8 agg + 4 core = 20 VRFs, 16 + 16 = 32 links. Fits (34 ports used per switch).
-* k=6 fat tree: 45 VRFs, 54 + 54 = 108 links. Does not fit. So k=4 is the largest k-ary fat tree.
-* Non-uniform 3-tier Clos variants with more switches do fit (e.g. 4 pods x 3 ToRs x 2 aggs + 2 planes
-  x 2 cores: 24 VRFs, 40 links), but the extra ToRs have no hosts, so they carry no traffic and add no
-  path diversity between the four hosts.
+* **26 VRFs**: `tor_a` + `agg_a0..agg_a3` + `core_0..core_7` (planes 0-1) on `alice`;
+  `tor_b` + `agg_b0..agg_b3` + `core_8..core_15` (planes 2-3) on `bob`.
+* **40 inter-VRF /30 links**: 4 `tor_a`--`agg_a0..3`, 4 `tor_b`--`agg_b0..3`, 16 `agg_a_p`--`core_(4p+j)`,
+  and 16 `core_(4p+j)`--`agg_b_p` (`p` in `0..3`, `j` in `0..3`).
+* **Port budget**: 12 loopback cables (24 ports) + 16 cross-switch cables (16 ports) + 2 host ports =
+  **42 of 48 ports used on `alice` and 42 of 48 ports used on `bob`** (`Ethernet43..48` spare on each).
+  k=8 is the largest even k whose two-ToR path subgraph fits (`k + k^2/2 = 40 <= 46` links; k=10 needs
+  `10 + 50 = 60 > 46` links).
 
-Placement: pods 0-1 and core0-1 on alice, pods 2-3 and core2-3 on bob. ToR-agg links stay inside a
-switch (loopback cables); 8 agg-core links cross between the switches. `configs/fattree_k4/wiring.txt`
-lists every cable.
-
-Note: the old `genconfig.py` only used the 23 odd ports 3..47 and required every link to cross between
-alice and bob. A k=4 fat tree cannot be built under those rules (32 > 23 links, and its 2-colouring would
-put all ToRs on one switch while hosts hang off both). The new generator uses all free ports and allows
-loopback cables. `topologies/ft_k4.json` keeps the old port rule and reproduces the old configs exactly.
+`configs/fattree_k8_pruned/wiring.txt` lists every cable. `topologies/fattree_k4.json` (full k=4 fat
+tree across four pods) and `topologies/ft_k4.json` (the original odd-port 15-VRF topology) remain
+available as alternatives.
 
 ## Step by step
 
 ```bash
 cd ~/faultference/testbed
-T=topologies/fattree_k4.json
+T=topologies/fattree_k8_pruned.json
 
-# 1. Generate configs and cable the switches per configs/fattree_k4/wiring.txt
+# 1. Generate configs and cable the switches per configs/fattree_k8_pruned/wiring.txt
 python3 genconfig.py $T
 
 # 2. Deploy: roll back to the clean-slate checkpoint, then merge the generated config
-python3 tb.py $T deploy --configs configs/fattree_k4
+python3 tb.py $T deploy --configs configs/fattree_k8_pruned
 
 # 3. Host namespaces (idempotent; safe to rerun)
 python3 tb.py $T hosts
 
-# 4. Sanity check: all-to-all traffic, per-flow iperf3 JSON in results/baseline
-python3 tb.py $T traffic --seconds 30 --flows 64 --outdir results/baseline
+# 4. Sanity check: cross-ToR traffic (8 directed host pairs), per-flow iperf3 JSON in results/baseline
+python3 tb.py $T traffic --seconds 30 --flows 100 --outdir results/baseline
 
 # 5. Inject a fault on one virtual switch (and revert it later)
-python3 tb.py $T fault inject --vrf agg3 --mode blackhole      # or silent_drop / high_latency
-python3 tb.py $T fault revert --vrf agg3 --mode blackhole
+python3 tb.py $T fault inject --vrf agg_a2 --mode blackhole      # or silent_drop / high_latency
+python3 tb.py $T fault revert --vrf agg_a2 --mode blackhole
 
 # 6. Manual perturbations
-python3 tb.py $T drain down --link agg3 core2                  # withdraw routes, then shut the link
-python3 tb.py $T drain up   --link agg3 core2
-python3 tb.py $T mirror add --vrf agg3
-python3 tb.py $T mirror capture --vrf agg3 --seconds 10 --pcap results/agg3.pcap
-python3 tb.py $T mirror remove --vrf agg3
+python3 tb.py $T drain down --link agg_a2 core_8                 # withdraw routes, then shut the link
+python3 tb.py $T drain up   --link agg_a2 core_8
+python3 tb.py $T mirror add --vrf agg_a2
+python3 tb.py $T mirror capture --vrf agg_a2 --seconds 10 --pcap results/agg_a2.pcap
+python3 tb.py $T mirror remove --vrf agg_a2
 python3 tb.py $T probe --src alice-host --dst bob-host --sport 40001 --count 200
 
 # 7. One FIVES trial (injects the fault, localizes, reverts, writes JSON)
-python3 run_trial.py $T --scenario silent_drop --culprit agg3 --inject \
-    --window-s 20 --flows 64 --latency-threshold-ms 1.0 --out results/trial_agg3.json
+python3 run_trial.py $T --scenario silent_drop --culprit agg_a2 --inject \
+    --window-s 20 --flows 100 --latency-threshold-ms 1.0 --out results/trial_agg_a2.json
 
 # 8. Revert everything
-python3 tb.py $T deploy --configs configs/fattree_k4               # or: configure replace checkpoint:<sw>-clean-slate
+python3 tb.py $T deploy --configs configs/fattree_k8_pruned      # or: configure replace checkpoint:<sw>-clean-slate
 ```
 
 Add `--dry-run` (before the subcommand for `tb.py`) to any step to see what it would do. Test the trial
 loop offline with
-`python3 run_trial.py $T --scenario blackhole --culprit core2 --window-s 10 --flows 64 --latency-threshold-ms 1.0 --out /tmp/t.json --dry-run`:
+`python3 run_trial.py $T --scenario blackhole --culprit core_3 --window-s 10 --flows 100 --latency-threshold-ms 1.0 --out /tmp/t.json --dry-run`:
 it prints every command and uses simulated telemetry with the same fault.
 
 ## Faults and their EOS limits
