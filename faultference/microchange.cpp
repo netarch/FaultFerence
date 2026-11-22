@@ -14,6 +14,10 @@ RemoveLinkMc::RemoveLinkMc(Link _remove_link) : remove_link(_remove_link) {
     mc_type = REMOVE_LINK;
 }
 
+ReplaceLinkMc::ReplaceLinkMc(Link _replace_link) : replace_link(_replace_link) {
+    mc_type = REPLACE_LINK;
+}
+
 ActiveProbeMc::ActiveProbeMc(int _src, int _dst, int _srcport, int _dstport,
                              int _nprobes, int _header_src, int _header_dst)
     : src(_src), dst(_dst), srcport(_srcport), dstport(_dstport),

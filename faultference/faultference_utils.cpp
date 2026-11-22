@@ -13,52 +13,40 @@
 using namespace std;
 
 bool USE_ACTIVE_PROBE_MC = true;
-const int SCORE_THRESHOLD = 1.0e-3;
-vector<int> ACTIVE_PROBE_FORBIDDEN_LIST;
-vector<int> LINK_REMOVAL_FORBIDDEN_LIST;
+const double SCORE_THRESHOLD = 1.0e-9;
+unordered_set<int> ACTIVE_PROBE_FORBIDDEN_SET;
+unordered_set<int> LINK_REMOVAL_FORBIDDEN_SET;
+bool FORBIDDEN_LOADED = false;
 
-bool ActiveProbeForbidden(int elem){
-    if (ACTIVE_PROBE_FORBIDDEN_LIST.size() == 0){
-        ifstream inputFile("./forbidden/active-probe");
-        if (inputFile) {        
-            int value;
-            cout << "Reading forbidden probes: ";
-            while ( inputFile >> value ) {
-                cout << value << " ";
-                ACTIVE_PROBE_FORBIDDEN_LIST.push_back(value);
-            }
-            cout << endl;
-        }
-        else{
-            cout << "*** FILE READING ERROR ***";
-        }
+void EnsureForbiddenLoaded() {
+    if (FORBIDDEN_LOADED) {
+        return;
     }
-    if (find(ACTIVE_PROBE_FORBIDDEN_LIST.begin(), ACTIVE_PROBE_FORBIDDEN_LIST.end(), elem) == ACTIVE_PROBE_FORBIDDEN_LIST.end()){
-        return false;
+    FORBIDDEN_LOADED = true;
+    const char *dir_env = getenv("FIVES_FORBIDDEN_DIR");
+    if (dir_env == nullptr || strlen(dir_env) == 0) {
+        return;
     }
-    return true;
+    string dir(dir_env);
+    ifstream apFile(dir + "/active-probe");
+    int value;
+    while (apFile >> value) {
+        ACTIVE_PROBE_FORBIDDEN_SET.insert(value);
+    }
+    ifstream lrFile(dir + "/link-removal");
+    while (lrFile >> value) {
+        LINK_REMOVAL_FORBIDDEN_SET.insert(value);
+    }
 }
 
-bool LinkRemovalForbidden(int elem){
-    if (LINK_REMOVAL_FORBIDDEN_LIST.size() == 0){
-        ifstream inputFile("./forbidden/link-removal");
-        if (inputFile) {        
-            int value;
-            cout << "Reading forbidden link removals: ";
-            while ( inputFile >> value ) {
-                cout << value << " ";
-                LINK_REMOVAL_FORBIDDEN_LIST.push_back(value);
-            }
-            cout << endl;
-        }
-        else{
-            cout << "*** FILE READING ERROR ***";
-        }
-    }
-    if (find(LINK_REMOVAL_FORBIDDEN_LIST.begin(), LINK_REMOVAL_FORBIDDEN_LIST.end(), elem) == LINK_REMOVAL_FORBIDDEN_LIST.end()){
-        return false;
-    }
-    return true;
+bool ActiveProbeForbidden(int elem) {
+    EnsureForbiddenLoaded();
+    return ACTIVE_PROBE_FORBIDDEN_SET.find(elem) != ACTIVE_PROBE_FORBIDDEN_SET.end();
+}
+
+bool LinkRemovalForbidden(int elem) {
+    EnsureForbiddenLoaded();
+    return LINK_REMOVAL_FORBIDDEN_SET.find(elem) != LINK_REMOVAL_FORBIDDEN_SET.end();
 }
 
 
@@ -477,8 +465,30 @@ set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
                 << new_localized_devices << endl;
         cout << "Count " << new_localized_devices.size() << endl;
 
-        if (IsProblemSolved(&(data[ntraces - 1]), max_finish_time_ms,
-                            min_path_per_link) == 1) {
+        double base_lost = 0.0, base_sent = 0.0;
+        for (Flow *flow : data[0].flows) {
+            if (!flow->IsFlowActive()) {
+                base_sent += flow->snapshots[0]->packets_sent;
+                base_lost += flow->snapshots[0]->packets_lost;
+            }
+        }
+        double curr_lost = 0.0, curr_sent = 0.0;
+        for (Flow *flow : data[ntraces - 1].flows) {
+            if (!flow->IsFlowActive()) {
+                curr_sent += flow->snapshots[0]->packets_sent;
+                curr_lost += flow->snapshots[0]->packets_lost;
+            }
+        }
+        double base_rate = (base_sent > 0.0) ? (base_lost / base_sent) : 0.0;
+        double curr_rate = (curr_sent > 0.0) ? (curr_lost / curr_sent) : 0.0;
+        double se = (curr_sent > 0.0 && base_rate > 0.0)
+                        ? sqrt(base_rate * max(0.0, 1.0 - base_rate) / curr_sent)
+                        : 0.0;
+        bool problem_solved = (base_rate > 0.0) &&
+                              (curr_rate <= max(1.0e-4, 0.25 * base_rate) ||
+                               (curr_rate < base_rate - 3.0 * se && curr_lost == 0.0));
+
+        if (problem_solved) {
             cout << "Problem was solved" << endl;
             set_difference(localized_devices.begin(), localized_devices.end(),
                             new_localized_devices.begin(),
@@ -512,7 +522,7 @@ set<int> LocalizeViaNobody(LogData *data, int ntraces, string fail_file,
                 probes_lost += flow->snapshots[0]->packets_lost;
             }
         }
-        if (probes_lost == probes_sent){
+        if (probes_lost > 0){
             set_intersection(localized_devices.begin(), localized_devices.end(),
                         new_localized_devices.begin(),
                         new_localized_devices.end(),
@@ -623,25 +633,43 @@ set<PII> ViableSrcDstForActiveProbe(LogData *data, int ntraces,
                                     double min_start_time_ms,
                                     double max_finish_time_ms) {
     set<PII> src_dst_pairs;
-    for (int t = 0; t < ntraces; t++) {
+    set<PII> already_probed;
+    for (int t = 1; t < ntraces; t++) {
         for (Flow *flow : data[t].flows) {
+            if (flow->IsFlowActive()) {
+                int s = data[t].IsNodeSwitch(flow->src) ? flow->src : data[t].hosts_to_racks[flow->src];
+                int d = data[t].IsNodeSwitch(flow->dest) ? flow->dest : data[t].hosts_to_racks[flow->dest];
+                already_probed.insert(PII(s, d));
+            }
+        }
+    }
+    for (int t = 0; t < min(1, ntraces); t++) {
+        unordered_set<vector<Path *> *> seen_pathsets;
+        for (Flow *flow : data[t].flows) {
+            if (flow->GetLatestPacketsLost() == 0) {
+                continue;
+            }
             vector<Path *> *flow_paths = flow->GetPaths(max_finish_time_ms);
+            if (!seen_pathsets.insert(flow_paths).second) {
+                continue;
+            }
             for (Path *path : *flow_paths) {
                 Path dpath;
                 data[t].GetDeviceLevelPath(flow, *path, dpath);
                 int dst = dpath[dpath.size() - 1];
-                // cout << "path " << dpath << endl;
-                for (int i = 0; i < dpath.size() - 1; i++) {
-                    if (data[t].IsNodeSwitch(dpath[i]) and
-                        data[t].IsNodeSwitch(dst) and dpath[i] != dst and
+                for (int i = 0; i < (int)dpath.size() - 1; i++) {
+                    PII cand(dpath[i], dst);
+                    if (already_probed.find(cand) != already_probed.end()) {
+                        continue;
+                    }
+                    if (data[t].IsNodeSwitch(dpath[i]) &&
+                        data[t].IsNodeSwitch(dst) && dpath[i] != dst &&
+                        !(ActiveProbeForbidden(dpath[i]) || ActiveProbeForbidden(dst)) &&
                         CheckNoBranch(&data[t], flow_paths, dpath[i], dst)) {
-                            if (!(ActiveProbeForbidden(dpath[i]) || ActiveProbeForbidden(dst))){
-                                src_dst_pairs.insert(PII(dpath[i], dst));
-                            }
+                        src_dst_pairs.insert(cand);
                     }
                 }
             }
-            // assert (t == 0);
         }
         cout << "ViableSrcDstForActiveProbe: finished iteration " << t << endl;
     }
@@ -808,16 +836,19 @@ GetMicroChange(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
             used_links, min_start_time_ms, max_finish_time_ms, minimize_mode,
             nopenmp_threads);
         
-        cout << "AP cost: " << result_ap.second << ",LR cost: " << result_lr.second;
-        if (result_ap.second > result_lr.second){
+        cout << "AP cost: " << result_ap.second << ",LR cost: " << result_lr.second << endl;
+        if (result_ap.second < result_lr.second){
             cout << "AP was chosen" << endl;
-            result = result_ap;
+            result = pair<MicroChange *, double>(result_ap.first, isfinite(result_ap.second) ? 1.0 / max(1.0e-6, result_ap.second) : 0.0);
             eq_device_sets = eq_device_sets_ap;
         }
-        else{
+        else if (isfinite(result_lr.second)){
             cout << "LR was chosen" << endl;
-            result = result_lr;
+            result = pair<MicroChange *, double>(result_lr.first, 1.0 / max(1.0e-6, result_lr.second));
             eq_device_sets = eq_device_sets_lr;
+        }
+        else{
+            result = pair<MicroChange *, double>(result_lr.first, 0.0);
         }
     }
     return result;
@@ -870,17 +901,34 @@ void BinFlowsByDeviceAgg(LogData *data, vector<Flow *> *dropped_flows,
     }
 }
 
-double get_normalized_score(MicroChange *m, double score, string minimize_mode, int flows_impacted){
-    cout << "Minimize mode is " << minimize_mode << " score is " << score << endl;
+double get_normalized_score(MicroChange *m, double score, string minimize_mode, double flows_impacted){
+    if (score <= 0.0) {
+        return 0.0;
+    }
     if (minimize_mode == "Cost"){
-        score /= m->GetCost();
+        score /= double(m->GetCost());
     }
     else if (minimize_mode == "Time"){
-        score /= m->GetTimeToDiagnose();
+        score /= double(m->GetTimeToDiagnose());
     }
-    score /= flows_impacted;
-    cout << "Normalized score is " << score << endl;
+    score /= max(1.0, flows_impacted);
     return score;
+}
+
+set<Link> GetPreviouslyRemovedLinks(LogData *data, int ntraces) {
+    set<Link> removed;
+    for (int t = 1; t < ntraces; t++) {
+        for (auto &[link, lid] : data[0].links_to_ids) {
+            if (link.first != link.second &&
+                data[0].IsNodeSwitch(link.first) &&
+                data[0].IsNodeSwitch(link.second) &&
+                data[t].links_to_ids.find(link) == data[t].links_to_ids.end()) {
+                removed.insert(link);
+                removed.insert(Link(link.second, link.first));
+            }
+        }
+    }
+    return removed;
 }
 
 void GetEqDevicesInFlowPaths(LogData &data, Flow *flow,
@@ -1064,6 +1112,10 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
         }
         // lock.unlock();
     }
+    if (max_pairs == 0 || best_src_dst.first == -1) {
+        ActiveProbeMc *amc = new ActiveProbeMc(-1, -1, 0, 0, 0, -1, -1);
+        return pair<ActiveProbeMc *, double>(amc, 0.0);
+    }
     // do again for the best mc to populate eq_device_sets
     EvaluateActiveProbeMc(data, dropped_flows, ntraces, equivalent_devices,
                           best_src_dst, min_start_time_ms, max_finish_time_ms,
@@ -1083,7 +1135,7 @@ GetBestActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
         new ActiveProbeMc(best_src_dst.first, best_src_dst.second, srcport,
                           dstport, nprobes, hsrc, hdst);
     
-    return pair<ActiveProbeMc *, double>(amc, get_normalized_score(amc, (double)max_pairs, minimize_mode, 1));
+    return pair<ActiveProbeMc *, double>(amc, get_normalized_score(amc, (double)max_pairs, minimize_mode, 1.0));
 }
 
 double GetFlowsImpacted(LogData *data, double max_finish_time_ms, Link broken_link){
@@ -1129,6 +1181,10 @@ GetLowestCostActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntr
         }
         // lock.unlock();
     }
+    if (max_pairs == 0 || best_src_dst.first == -1) {
+        ActiveProbeMc *amc = new ActiveProbeMc(-1, -1, 0, 0, 0, -1, -1);
+        return pair<ActiveProbeMc *, double>(amc, numeric_limits<double>::infinity());
+    }
     // do again for the best mc to populate eq_device_sets
     EvaluateActiveProbeMc(data, dropped_flows, ntraces, equivalent_devices,
                           best_src_dst, min_start_time_ms, max_finish_time_ms,
@@ -1148,7 +1204,7 @@ GetLowestCostActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntr
         new ActiveProbeMc(best_src_dst.first, best_src_dst.second, srcport,
                           dstport, nprobes, hsrc, hdst);
     
-    return pair<ActiveProbeMc *, double>(amc, 1);
+    return pair<ActiveProbeMc *, double>(amc, double(amc->GetCost()));
 }
 
 pair<ActiveProbeMc *, double>
@@ -1193,6 +1249,10 @@ GetRandomActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces
             min_start_time_ms, max_finish_time_ms, eq_device_sets_copy);
     }
 
+    if (pairs == 0 || best_src_dst.first == -1) {
+        ActiveProbeMc *amc = new ActiveProbeMc(-1, -1, 0, 0, 0, -1, -1);
+        return pair<ActiveProbeMc *, double>(amc, 0.0);
+    }
     // do again for the best mc to populate eq_device_sets
     EvaluateActiveProbeMc(data, dropped_flows, ntraces, equivalent_devices,
                           best_src_dst, min_start_time_ms, max_finish_time_ms,
@@ -1211,7 +1271,7 @@ GetRandomActiveProbeMc(LogData *data, vector<Flow *> *dropped_flows, int ntraces
     ActiveProbeMc *amc =
         new ActiveProbeMc(best_src_dst.first, best_src_dst.second, srcport,
                           dstport, nprobes, hsrc, hdst);
-    return pair<ActiveProbeMc *, double>(amc, get_normalized_score(amc, (double)pairs, minimize_mode, 1));
+    return pair<ActiveProbeMc *, double>(amc, get_normalized_score(amc, (double)pairs, minimize_mode, 1.0));
 }
 
 pair<RemoveLinkMc *, double>
@@ -1219,46 +1279,43 @@ GetBestLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                     set<int> &equivalent_devices, set<set<int>> &eq_device_sets,
                     set<Link> &used_links, double min_start_time_ms,
                     double max_finish_time_ms, string minimize_mode, int nopenmp_threads) {
-    int max_pairs = 0;
-    // mutex lock;
+    double max_score = 0.0;
     Link best_link_to_remove = Link(-1, -1);
-    // #pragma omp parallel for num_threads(nopenmp_threads)
+    set<Link> prev_removed = GetPreviouslyRemovedLinks(data, ntraces);
     for (Link link : used_links) {
+        if (prev_removed.find(link) != prev_removed.end()) {
+            continue;
+        }
         if (LinkRemovalForbidden(link.first) || LinkRemovalForbidden(link.second)){
             continue;
         }
         int link_id = data[0].links_to_ids[link];
-        Link rlink = Link(link.second, link.first);
         if (data[0].IsNodeSwitch(link.first) and
             data[0].IsNodeSwitch(link.second) and
             !data[0].IsLinkDevice(link_id)) {
-            for (int ii = 0; ii < ntraces; ii++) {
-                int link_id_ii = data[ii].links_to_ids[link];
-                CheckShortestPathExists(data[ii], max_finish_time_ms,
-                                        dropped_flows[ii], link_id_ii);
-            }
             set<set<int>> eq_device_sets_copy = eq_device_sets;
             int pairs = GetEqDeviceSetsMeasure(
                 data, dropped_flows, ntraces, equivalent_devices, link,
                 max_finish_time_ms, eq_device_sets_copy);
-            RemoveLinkMc *mc = new RemoveLinkMc(link);
-            int flows_impacted = GetFlowsImpacted(data, max_finish_time_ms, link);
-            pairs = get_normalized_score(mc, double(pairs), minimize_mode, flows_impacted);
-            cout << "Removing link " << link << " pairs " << pairs << endl;
-            // lock.lock();
-            if (pairs > max_pairs) {
-                best_link_to_remove = link;
-                max_pairs = pairs;
+            if (pairs <= 0) {
+                continue;
             }
-            // lock.unlock();
+            RemoveLinkMc mc_tmp(link);
+            double flows_impacted = GetFlowsImpacted(data, max_finish_time_ms, link);
+            double norm_score = get_normalized_score(&mc_tmp, double(pairs), minimize_mode, flows_impacted);
+            if (norm_score > max_score) {
+                best_link_to_remove = link;
+                max_score = norm_score;
+            }
         }
     }
-    // do again for the best link to populate eq_device_sets
-    GetEqDeviceSetsMeasure(data, dropped_flows, ntraces, equivalent_devices,
-                           best_link_to_remove, max_finish_time_ms,
-                           eq_device_sets);
+    if (best_link_to_remove.first != -1) {
+        GetEqDeviceSetsMeasure(data, dropped_flows, ntraces, equivalent_devices,
+                               best_link_to_remove, max_finish_time_ms,
+                               eq_device_sets);
+    }
     RemoveLinkMc *mc = new RemoveLinkMc(best_link_to_remove);
-    return pair<RemoveLinkMc *, double>(mc, max_pairs);
+    return pair<RemoveLinkMc *, double>(mc, max_score);
 }
 
 pair<RemoveLinkMc *, double>
@@ -1266,50 +1323,43 @@ GetLowestCostLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntra
                     set<int> &equivalent_devices, set<set<int>> &eq_device_sets,
                     set<Link> &used_links, double min_start_time_ms,
                     double max_finish_time_ms, string minimize_mode, int nopenmp_threads) {
-    int min_flows_impacted = 100000;
-    int final_pairs = 0;
-    // mutex lock;
+    double min_cost = numeric_limits<double>::infinity();
     Link best_link_to_remove = Link(-1, -1);
-    // #pragma omp parallel for num_threads(nopenmp_threads)
+    set<Link> prev_removed = GetPreviouslyRemovedLinks(data, ntraces);
     for (Link link : used_links) {
+        if (prev_removed.find(link) != prev_removed.end()) {
+            continue;
+        }
         if (LinkRemovalForbidden(link.first) || LinkRemovalForbidden(link.second)){
             continue;
         }
         int link_id = data[0].links_to_ids[link];
-        Link rlink = Link(link.second, link.first);
         if (data[0].IsNodeSwitch(link.first) and
             data[0].IsNodeSwitch(link.second) and
             !data[0].IsLinkDevice(link_id)) {
-            for (int ii = 0; ii < ntraces; ii++) {
-                int link_id_ii = data[ii].links_to_ids[link];
-                CheckShortestPathExists(data[ii], max_finish_time_ms,
-                                        dropped_flows[ii], link_id_ii);
-            }
             set<set<int>> eq_device_sets_copy = eq_device_sets;
             int pairs = GetEqDeviceSetsMeasure(
                 data, dropped_flows, ntraces, equivalent_devices, link,
                 max_finish_time_ms, eq_device_sets_copy);
-            
-            RemoveLinkMc *mc = new RemoveLinkMc(link);
-            int flows_impacted = GetFlowsImpacted(data, max_finish_time_ms, link);
-            pairs = get_normalized_score(mc, double(pairs), minimize_mode, flows_impacted);
-
-            cout << "Removing link " << link << " pairs " << pairs << endl;
-            // lock.lock();
-            if (flows_impacted <= min_flows_impacted) {
-                best_link_to_remove = link;
-                min_flows_impacted = flows_impacted;
-                final_pairs = pairs;
+            if (pairs <= 0) {
+                continue;
             }
-            // lock.unlock();
+            RemoveLinkMc mc_tmp(link);
+            double flows_impacted = max(1.0, GetFlowsImpacted(data, max_finish_time_ms, link));
+            double total_cost = double(mc_tmp.GetCost()) * flows_impacted;
+            if (total_cost < min_cost) {
+                best_link_to_remove = link;
+                min_cost = total_cost;
+            }
         }
     }
-    // do again for the best link to populate eq_device_sets
-    GetEqDeviceSetsMeasure(data, dropped_flows, ntraces, equivalent_devices,
-                           best_link_to_remove, max_finish_time_ms,
-                           eq_device_sets);
+    if (best_link_to_remove.first != -1) {
+        GetEqDeviceSetsMeasure(data, dropped_flows, ntraces, equivalent_devices,
+                               best_link_to_remove, max_finish_time_ms,
+                               eq_device_sets);
+    }
     RemoveLinkMc *mc = new RemoveLinkMc(best_link_to_remove);
-    return pair<RemoveLinkMc *, double>(mc, min_flows_impacted);
+    return pair<RemoveLinkMc *, double>(mc, min_cost);
 }
 
 pair<RemoveLinkMc *, double>
@@ -1318,49 +1368,43 @@ GetRandomLinkToRemove(LogData *data, vector<Flow *> *dropped_flows, int ntraces,
                       set<set<int>> &eq_device_sets, set<Link> &used_links,
                       double min_start_time_ms, double max_finish_time_ms,
                       string minimize_mode, int nopenmp_threads) {
-    
     vector<pair<Link, int>> used_links_with_pairs;
     Link random_link_to_remove = Link(-1, -1);
-    double pairs = 0;
-    
+    double chosen_pairs = 0.0;
+    set<Link> prev_removed = GetPreviouslyRemovedLinks(data, ntraces);
     for (Link link : used_links) {
+        if (prev_removed.find(link) != prev_removed.end()) {
+            continue;
+        }
         if (LinkRemovalForbidden(link.first) || LinkRemovalForbidden(link.second)){
             continue;
         }
         int link_id = data[0].links_to_ids[link];
-        Link rlink = Link(link.second, link.first);
         if (data[0].IsNodeSwitch(link.first) and
             data[0].IsNodeSwitch(link.second) and
             !data[0].IsLinkDevice(link_id)) {
-            for (int ii = 0; ii < ntraces; ii++) {
-                int link_id_ii = data[ii].links_to_ids[link];
-                CheckShortestPathExists(data[ii], max_finish_time_ms,
-                                        dropped_flows[ii], link_id_ii);
-            }
             set<set<int>> eq_device_sets_copy = eq_device_sets;
-            int pairs = GetEqDeviceSetsMeasure(
+            int p = GetEqDeviceSetsMeasure(
                 data, dropped_flows, ntraces, equivalent_devices, link,
                 max_finish_time_ms, eq_device_sets_copy);
-            cout << "Removing link " << link << " pairs " << pairs << endl;
-            if (pairs > 0) {
-                used_links_with_pairs.push_back(pair<Link, int>(link, pairs));
+            if (p > 0) {
+                used_links_with_pairs.push_back(pair<Link, int>(link, p));
             }
         }
     }
-    if (used_links_with_pairs.size() > 0) {
-        tie(random_link_to_remove, pairs) =
-        used_links_with_pairs[rand() % used_links_with_pairs.size()];
+    if (!used_links_with_pairs.empty()) {
+        auto picked = used_links_with_pairs[rand() % used_links_with_pairs.size()];
+        random_link_to_remove = picked.first;
+        chosen_pairs = double(picked.second);
+        GetEqDeviceSetsMeasure(data, dropped_flows, ntraces, equivalent_devices,
+                               random_link_to_remove, max_finish_time_ms,
+                               eq_device_sets);
     }
-
-    // Do again for the random link to populate eq_device_sets
-    GetEqDeviceSetsMeasure(data, dropped_flows, ntraces, equivalent_devices,
-                           random_link_to_remove, max_finish_time_ms,
-                           eq_device_sets);
-    
     RemoveLinkMc *mc = new RemoveLinkMc(random_link_to_remove);
-    int flows_impacted = GetFlowsImpacted(data, max_finish_time_ms, random_link_to_remove);
-    return pair<RemoveLinkMc *, double>(mc, get_normalized_score(mc, (double)pairs, minimize_mode, flows_impacted));
-
+    double flows_impacted = (random_link_to_remove.first != -1)
+                                ? GetFlowsImpacted(data, max_finish_time_ms, random_link_to_remove)
+                                : 1.0;
+    return pair<RemoveLinkMc *, double>(mc, get_normalized_score(mc, chosen_pairs, minimize_mode, flows_impacted));
 }
 
 int GetExplanationEdgesAgg2(LogData *data, vector<Flow *> *dropped_flows,

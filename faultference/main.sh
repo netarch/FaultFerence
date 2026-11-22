@@ -52,13 +52,16 @@ num_steps=0
 eq_devices=""
 eq_size=0
 
+PYTHON_BIN=${PYTHON_BIN:-/usr/local/google/home/rahulbothra/faultference/.venv/bin/python}
+FAILURE_MODE=${FAILURE_MODE:-blackhole}
+
 while [ ${iter} -le ${maxiter} ]
 do
     echo ${inputs} >> ${logdir}/input
     ./estimator_agg 0.0 1000000.01 ${nthreads} ${inputs} > ${localization_logs}/iter_${iter}
-    new_eq_devices=`cat ${localization_logs}/iter_${iter} | grep "equivalent devices" | grep "equivalent devices" | sed 's/equivalent devices //' | sed 's/size.*//'`
-    new_eq_size=`echo ${new_eq_devices} | sed 's/]//'g | sed 's/\[//'g | awk -F',' '{print NF}'`
-    echo "new_eq_devices ${new_eq_devices}"
+    new_eq_devices=`cat ${localization_logs}/iter_${iter} | grep "equivalent devices" | sed 's/equivalent devices //' | sed 's/size.*//'`
+    new_eq_size=`cat ${localization_logs}/iter_${iter} | grep "equivalent devices" | sed 's/.*size //' | awk '{print $1}'`
+    echo "new_eq_devices ${new_eq_devices} (size ${new_eq_size})"
 
     if [[ "${new_eq_devices}" == "${eq_devices}" ]]
     then 
@@ -67,14 +70,15 @@ do
         unchanged=0
     fi
 
-    if [[ ${unchanged} -gt 2 ]]
+    eq_devices=${new_eq_devices}
+    eq_size=${new_eq_size}
+    echo "Iter: $iter, Size: ${new_eq_size}, Devices: ${new_eq_devices}" >> ${eq_devices_file}
+
+    if [[ ${new_eq_size} -le 1 ]] || [[ ${unchanged} -gt 2 ]]
     then
         break
     fi
 
-    eq_devices=${new_eq_devices}
-    eq_size=${new_eq_size}
-    echo "Iter: $iter, Size: ${new_eq_size}, Devices: ${new_eq_devices}" >> ${eq_devices_file}
     micro_change_happening=$(cat ${localization_logs}/iter_${iter} | grep "Best MicroChange" | cut -d " " -f 5)
     echo "Micro change happening: ${micro_change_happening}" 
     case $micro_change_happening in 
@@ -87,7 +91,8 @@ do
                 suffix=iter${iter}_r${p}_${q}
                 topofile_mod=${modified_topo_dir}/${topoprefix}_${suffix}.edgelist
                 cat ${topofile} | grep -v "^${p} ${q}$" | grep -v "^${q} ${p}$"  > ${topofile_mod}
-                python3 ../flow_simulator/flow_simulator.py \
+                ${PYTHON_BIN} ../flow_simulator/flow_simulator.py \
+                    --failure_mode ${FAILURE_MODE} \
                     --network_file ${topofile_mod} \
                     --nfailures ${nfails} \
                     --flows_file ${logdir}/flows_${suffix} \
@@ -108,7 +113,8 @@ do
                 echo "${src} ${dst} ${srcport} ${dstport} ${nprobes} ${hsrc} ${hdst}" > ${apfile}
                 (( num_steps++ ))
                 echo "Active probes ${src} ${dst} ${nprobes}"
-                python3 ../flow_simulator/flow_simulator.py \
+                ${PYTHON_BIN} ../flow_simulator/flow_simulator.py \
+                    --failure_mode ${FAILURE_MODE} \
                     --network_file ${topofile} \
                     --nfailures ${nfails} \
                     --flows_file ${logdir}/flows_${suffix} \
@@ -120,8 +126,8 @@ do
             done < "${micro_change_dir}/iter_${iter}"
             ;;
         *)
-            echo "Oh Boy!"
-            echo ${micro_change_happening}
+            echo "No further distinguishing MicroChange available; stopping."
+            break
             ;;
         esac
         (( iter++ ))

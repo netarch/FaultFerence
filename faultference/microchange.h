@@ -9,7 +9,7 @@
 #include <vector>
 using namespace std;
 
-enum MicroChangeType { REMOVE_LINK, ACTIVE_PROBE };
+enum MicroChangeType { REMOVE_LINK, ACTIVE_PROBE, REPLACE_LINK };
 
 class MicroChange {
   public:
