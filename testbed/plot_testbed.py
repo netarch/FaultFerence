@@ -43,7 +43,7 @@ BAR_ERR_KW = dict(elinewidth=0.75, capsize=2.2, capthick=0.75, ecolor="#222222")
 def configure_style() -> None:
     plt.rcParams.update({
         "font.family": "serif",
-        "font.serif": ["TeX Gyre Schola", "C059", "Century Schoolbook", "DejaVu Serif"],
+        "font.serif": ["Liberation Serif", "DejaVu Serif"],
         "pdf.fonttype": 42,
         "ps.fonttype": 42,
         "font.size": 10.0,
