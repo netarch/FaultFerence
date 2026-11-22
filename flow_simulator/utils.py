@@ -906,14 +906,14 @@ class Topology(object):
             if flow.IsFlowActive():
                 packets_sent = 100
             # path_taken = random.choice(list(nx.all_shortest_paths(G, source=src_rack, target=dst_rack)))
-            packets_dropped = 0
-            for i in range(packets_sent):
-                for k in range(0, len(complete_path) - 1):
-                    u = complete_path[k]
-                    v = complete_path[k + 1]
-                    if (u < HOST_OFFSET and random.random() <= fail_prob[(u, u)]) or random.random() <= fail_prob[(u, v)]:
-                        packets_dropped += 1
-                        break
+            p_survive = 1.0
+            for k in range(0, len(complete_path) - 1):
+                u = complete_path[k]
+                v = complete_path[k + 1]
+                if u < HOST_OFFSET:
+                    p_survive *= (1.0 - fail_prob[(u, u)])
+                p_survive *= (1.0 - fail_prob[(u, v)])
+            packets_dropped = int(np.random.binomial(packets_sent, 1.0 - p_survive))
             print(
                 "FID ",
                 flow.src,

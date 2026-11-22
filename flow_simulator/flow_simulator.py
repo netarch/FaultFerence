@@ -23,12 +23,15 @@ parser.add_argument("--failed_flows_only", action="store_true", default=False)
 parser.add_argument(
     "--duplicate_link", nargs=2, metavar=("l1", "l2"), type=int, default=(-1, -1)
 )
+parser.add_argument(
+    "--failure_mode", type=str, choices=["blackhole", "silent_drop"], default="blackhole"
+)
 
 args = parser.parse_args()
 
 
 HOST_OFFSET = 10000
-BLACK_HOLE = False
+BLACK_HOLE = (args.failure_mode == "blackhole")
 
 # random.seed(42)
 # np.random.seed(42)
