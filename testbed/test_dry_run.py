@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import unittest
 
 import networkx as nx
 
@@ -16,10 +17,19 @@ FT4 = os.path.join(HERE, "topologies", "fattree_k4.json")
 sys.path.insert(0, HERE)
 from fivestb import commands as C  # noqa: E402
 from fivestb.topology import TestbedTopology  # noqa: E402
+from make_pruned_clos import make_pruned_clos  # noqa: E402
 
 
 def run(*args):
     return subprocess.run([sys.executable, *args], cwd=HERE, check=True, capture_output=True, text=True).stdout
+
+
+def test_make_pruned_clos_generator():
+    with open(FT8) as f:
+        expected = json.load(f)
+    assert make_pruned_clos(k=8, ports_per_switch=48) == expected
+    # k=10 needs 2 + 10 + 50 = 62 ports/switch > 48
+    unittest.TestCase().assertRaises(AssertionError, make_pruned_clos, 10, 48)
 
 
 def test_fattree_k8_pruned_fits_port_budget():

@@ -4,5 +4,7 @@
 .DS_store
 calibration_logs/
 sweep_logs/
+testbed/out/
+testbed/results/
 *.a
 sparsehash/

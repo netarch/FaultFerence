@@ -1,22 +1,43 @@
 # FIVES Arista testbed
 
 Tools to build a virtual Clos fabric on two Arista 7280 switches, inject faults, apply FIVES
-perturbations, and run FIVES localization trials on the hardware.
+perturbations, and run FIVES localization sweeps (either replayed in the simulator or live on the
+hardware) with automatic summarization and plot generation.
 
 | File | Purpose |
 |---|---|
+| `run_all.sh` | single turnkey script: generate pruned Clos + configs, run all 3 scenarios, summarize, and plot |
+| `make_pruned_clos.py` | programmatic generator for `topologies/fattree_k{k}_pruned.json` (and optional EOS configs) |
 | `topologies/fattree_k8_pruned.json` | default: two-ToR path subgraph of a k=8 fat tree (26 VRFs, 40 links, 16 ECMP paths), hosts on `tor_a` (alice) and `tor_b` (bob) |
 | `topologies/fattree_k4.json` | alternative: full k=4 fat tree (20 VRFs, 32 links), hosts on tor0/tor2/tor4/tor6 (one per pod) |
 | `topologies/ft_k4.json` | the original `ft_k4` edgelist (15 VRFs, 19 links), same output as the old genconfig.py |
 | `genconfig.py` | topology JSON -> `configs/<name>/{alice,bob}.config` + `wiring.txt` (port map) |
 | `tb.py` | deploy configs, set up host netns, run traffic, inject/revert faults, drain links, mirror, probe |
-| `run_trial.py` | one FIVES localization trial on the hardware (fives planner + inference), logged to JSON |
+| `run_trial.py` | one localization trial on the hardware (`FIVES`, `Operator-PA`, or `Drain-Sweep`), logged to JSON |
+| `run_sweep.py` | full 3-scenario x 3-scheme sweep (`--mode replay` or `--mode hardware [--dry-run]`) |
+| `summarize_testbed.py` | compute means + 90% CIs (`tb_summary.json` and `tb_table.md`) |
+| `plot_testbed.py` | generate vector PDF + PNG plots (`testbed-{steps,time,loss}.{pdf,png}`) |
 | `fivestb/` | small library: topology/port/route model, EOS + Linux command builders, executor |
 | `test_dry_run.py` | offline tests of every command in dry-run mode (`python3 test_dry_run.py`) |
 
-Every command accepts `--dry-run`, which prints the exact switch config snippets and shell commands
-and touches nothing. Run everything from this directory with Python 3 (needs `networkx`, `numpy`,
-`scipy`; `run_trial.py` imports `../fives`). Host tools: `iperf3`, `hping3`, `traceroute`, `tshark`.
+## Quick start (one-line turnkey pipeline)
+
+From the repository root (or `./run_all.sh` inside `testbed/`):
+
+```bash
+# Simulator replay (default: k=8 pruned Clos, 26 VRFs x 3 reps = 78 trials/scenario) + summary + plots
+./testbed/run_all.sh
+
+# Preview every SSH/EOS/netns command of the full hardware pipeline without touching switches
+./testbed/run_all.sh --mode hardware --dry-run --reps 1 --outdir testbed/out_hw_dry
+
+# Live hardware sweep on alice and bob
+./testbed/run_all.sh --mode hardware --reps 3
+```
+
+Outputs are written to `testbed/out/` by default (gitignored; override with `--outdir <dir>`):
+`tb_{blackhole,silent_drop,high_latency}.json`, `tb_summary.json`, `tb_table.md`, and
+`testbed-{steps,time,loss}.{pdf,png}` (plus `hardware_commands.log` in `--mode hardware`).
 
 ## Hardware
 
@@ -51,21 +72,25 @@ ECMP path fanout of k=8 within the port budget:
   and 16 `core_(4p+j)`--`agg_b_p` (`p` in `0..3`, `j` in `0..3`).
 * **Port budget**: 12 loopback cables (24 ports) + 16 cross-switch cables (16 ports) + 2 host ports =
   **42 of 48 ports used on `alice` and 42 of 48 ports used on `bob`** (`Ethernet43..48` spare on each).
-  k=8 is the largest even k whose two-ToR path subgraph fits (`k + k^2/2 = 40 <= 46` links; k=10 needs
-  `10 + 50 = 60 > 46` links).
+  `make_pruned_clos.py` asserts `2 + k + k^2/2 <= ports_per_switch`; k=8 is the largest even k that
+  fits on 48-port switches (k=10 needs `62 > 48` ports/switch).
 
 `configs/fattree_k8_pruned/wiring.txt` lists every cable. `topologies/fattree_k4.json` (full k=4 fat
 tree across four pods) and `topologies/ft_k4.json` (the original odd-port 15-VRF topology) remain
 available as alternatives.
 
-## Step by step
+## Manual step-by-step commands
+
+Every command accepts `--dry-run`, which prints the exact switch config snippets and shell commands
+and touches nothing (needs `networkx`, `numpy`, `scipy`, `matplotlib`; host tools: `iperf3`, `hping3`,
+`traceroute`, `tshark`).
 
 ```bash
 cd ~/faultference/testbed
 T=topologies/fattree_k8_pruned.json
 
-# 1. Generate configs and cable the switches per configs/fattree_k8_pruned/wiring.txt
-python3 genconfig.py $T
+# 1. Generate topology JSON, EOS configs, and configs/fattree_k8_pruned/wiring.txt
+python3 make_pruned_clos.py --k 8 --genconfig
 
 # 2. Deploy: roll back to the clean-slate checkpoint, then merge the generated config
 python3 tb.py $T deploy --configs configs/fattree_k8_pruned
@@ -96,11 +121,6 @@ python3 run_trial.py $T --scenario silent_drop --culprit agg_a2 --inject \
 python3 tb.py $T deploy --configs configs/fattree_k8_pruned      # or: configure replace checkpoint:<sw>-clean-slate
 ```
 
-Add `--dry-run` (before the subcommand for `tb.py`) to any step to see what it would do. Test the trial
-loop offline with
-`python3 run_trial.py $T --scenario blackhole --culprit core_3 --window-s 10 --flows 100 --latency-threshold-ms 1.0 --out /tmp/t.json --dry-run`:
-it prints every command and uses simulated telemetry with the same fault.
-
 ## Faults and their EOS limits
 
 | Fault | Injection on VRF X (all of X's interfaces) | Exactness |
@@ -122,9 +142,3 @@ on one of X's links; this testbed has no spare host-facing ports for that.
   Mirroring cannot see black-holed flows (they never arrive) and has no hardware timestamps for latency.
 * **Probes**: from a host netns, `hping3` with a pinned source port (one ECMP path) plus a TCP
   traceroute on the same 5-tuple; traceroute hop IPs map to VRFs, so the probe's path is known.
-
-## Collecting results
-
-`run_trial.py` writes the trial (scenario, culprit, final suspect set, precision/recall, steps,
-estimated time, per-step perturbation and suspect set) to `--out`. Raw telemetry goes to
-`--workdir/windowNN/` (iperf3 JSON, hping3 output, mirror pcaps).

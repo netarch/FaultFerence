@@ -27,9 +27,10 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from fives import (  # noqa: E402
-    ActiveProbe, FailureMode, FailureSpec, FivesPlanner, FullLinkDrain, MultiOutcomeEfficacyEstimator,
-    MultiRoundBayesianPGM, NetworkSystem, PacketMirror, SafetyConfig, SafetyFilter, TelemetryRecord,
-    TelemetryWindow, TwoPhaseImpactEstimator, load_edgelist_network, run_episode,
+    ActiveProbe, CheapestFirstOperatorPlanner, FailureMode, FailureSpec, FivesPlanner, FullLinkDrain,
+    MultiOutcomeEfficacyEstimator, MultiRoundBayesianPGM, NetworkSystem, PacketMirror, Planner,
+    SafetyConfig, SafetyFilter, SetIntersectionInference, TelemetryRecord, TelemetryWindow,
+    TwoPhaseImpactEstimator, load_edgelist_network, run_episode,
 )
 from fivestb import commands as C  # noqa: E402
 from fivestb.executor import Executor  # noqa: E402
@@ -184,11 +185,46 @@ class PairSplitPlanner(FivesPlanner):
         return pairs_w / self.impact.estimate(p, expected_drop_prob=expected_drop_prob).scalar_cost(self.tradeoff_lambda)
 
 
+class DrainSweepPlanner(Planner):
+    """Drain links adjacent to current suspects one at a time, in fixed (u, v) order."""
+
+    name = "DrainSweep"
+
+    def __init__(self, system, safety_filter, efficacy):
+        self.system, self.safety, self.efficacy = system, safety_filter, efficacy
+
+    def select_next(self, posteriors, active_pairs, tried_keys, expected_drop_prob):
+        suspects = sorted(c for c, pr in posteriors.items() if pr > 1.0e-6)
+        if len(suspects) <= 1:
+            return None
+        for p in self.system.candidate_perturbations(active_pairs, set(suspects)):
+            if (isinstance(p, FullLinkDrain) and p.key not in tried_keys and (p.u in suspects or p.v in suspects)
+                    and self.safety.is_safe(p, active_pairs)
+                    and len(self.efficacy.partition_suspects(p, suspects, active_pairs)) > 1):
+                return p
+        return None
+
+
+def build_scheme(scheme: str, net, safety, impact, efficacy, bg_noise_prob: float, op_seed: int,
+                 tradeoff_lambda: float = 0.5):
+    if scheme == "FIVES":
+        return (PairSplitPlanner(net, safety, impact, efficacy, tradeoff_lambda=tradeoff_lambda),
+                MultiRoundBayesianPGM(net, path_aware=True, bg_noise_prob=bg_noise_prob))
+    if scheme == "Operator-PA":
+        return (CheapestFirstOperatorPlanner(net, safety, impact, efficacy, np.random.default_rng(op_seed)),
+                SetIntersectionInference(net, path_aware=True, bg_noise_prob=bg_noise_prob))
+    if scheme == "Drain-Sweep":
+        return (DrainSweepPlanner(net, safety, efficacy),
+                SetIntersectionInference(net, path_aware=True, bg_noise_prob=bg_noise_prob))
+    raise ValueError(f"unknown scheme {scheme}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("topology")
     ap.add_argument("--scenario", required=True, choices=sorted(DRY_RUN_SPECS))
     ap.add_argument("--culprit", required=True, help="faulty VRF (ground truth)")
+    ap.add_argument("--scheme", default="FIVES", choices=["FIVES", "Operator-PA", "Drain-Sweep"])
     ap.add_argument("--inject", action="store_true", help="inject the fault before and revert it after the trial")
     ap.add_argument("--window-s", type=int, required=True)
     ap.add_argument("--flows", type=int, required=True)
@@ -218,6 +254,7 @@ def main():
     pairs = tuple((a, b) for a in sorted(host_tors) for b in sorted(host_tors) if a != b)
     spec = FailureSpec(faulty_node=ids[args.culprit], affected_pairs=pairs, **DRY_RUN_SPECS[args.scenario])
     s, imp, eff = SafetyFilter(net), TwoPhaseImpactEstimator(net), MultiOutcomeEfficacyEstimator(net)
+    pl, inf = build_scheme(args.scheme, net, s, imp, eff, spec.unit_bad_prob(False), op_seed=1000 + args.seed)
 
     if args.scenario == "silent_drop":
         for c in C.iperf_servers(topo):
@@ -225,9 +262,7 @@ def main():
     if args.inject:
         sw, lines = C.fault_inject(topo, args.culprit, args.scenario, args.police_mbps, args.shape_kbps)
         ex.eos_config(sw, "fault_inject", lines)
-    res = run_episode(net, spec, PairSplitPlanner(net, s, imp, eff, tradeoff_lambda=0.5),
-                      MultiRoundBayesianPGM(net, path_aware=True, bg_noise_prob=spec.unit_bad_prob(False)), imp,
-                      np.random.default_rng(args.seed), flows_per_pair=args.flows)
+    res = run_episode(net, spec, pl, inf, imp, np.random.default_rng(args.seed), flows_per_pair=args.flows)
     if args.inject:
         sw, lines = C.fault_revert(topo, args.culprit, args.scenario)
         ex.eos_config(sw, "fault_revert", lines)
