@@ -1,0 +1,206 @@
+{
+ "name": "fattree_k4",
+ "physical_switches": {
+  "alice": {
+   "ports": 48
+  },
+  "bob": {
+   "ports": 48
+  }
+ },
+ "port_pool": "all",
+ "vrfs": {
+  "tor0": "alice",
+  "tor1": "alice",
+  "tor2": "alice",
+  "tor3": "alice",
+  "tor4": "bob",
+  "tor5": "bob",
+  "tor6": "bob",
+  "tor7": "bob",
+  "agg0": "alice",
+  "agg1": "alice",
+  "agg2": "alice",
+  "agg3": "alice",
+  "agg4": "bob",
+  "agg5": "bob",
+  "agg6": "bob",
+  "agg7": "bob",
+  "core0": "alice",
+  "core1": "alice",
+  "core2": "bob",
+  "core3": "bob"
+ },
+ "links": [
+  [
+   "tor0",
+   "agg0"
+  ],
+  [
+   "tor0",
+   "agg1"
+  ],
+  [
+   "tor1",
+   "agg0"
+  ],
+  [
+   "tor1",
+   "agg1"
+  ],
+  [
+   "tor2",
+   "agg2"
+  ],
+  [
+   "tor2",
+   "agg3"
+  ],
+  [
+   "tor3",
+   "agg2"
+  ],
+  [
+   "tor3",
+   "agg3"
+  ],
+  [
+   "tor4",
+   "agg4"
+  ],
+  [
+   "tor4",
+   "agg5"
+  ],
+  [
+   "tor5",
+   "agg4"
+  ],
+  [
+   "tor5",
+   "agg5"
+  ],
+  [
+   "tor6",
+   "agg6"
+  ],
+  [
+   "tor6",
+   "agg7"
+  ],
+  [
+   "tor7",
+   "agg6"
+  ],
+  [
+   "tor7",
+   "agg7"
+  ],
+  [
+   "agg0",
+   "core0"
+  ],
+  [
+   "agg0",
+   "core1"
+  ],
+  [
+   "agg1",
+   "core2"
+  ],
+  [
+   "agg1",
+   "core3"
+  ],
+  [
+   "agg2",
+   "core0"
+  ],
+  [
+   "agg2",
+   "core1"
+  ],
+  [
+   "agg3",
+   "core2"
+  ],
+  [
+   "agg3",
+   "core3"
+  ],
+  [
+   "agg4",
+   "core0"
+  ],
+  [
+   "agg4",
+   "core1"
+  ],
+  [
+   "agg5",
+   "core2"
+  ],
+  [
+   "agg5",
+   "core3"
+  ],
+  [
+   "agg6",
+   "core0"
+  ],
+  [
+   "agg6",
+   "core1"
+  ],
+  [
+   "agg7",
+   "core2"
+  ],
+  [
+   "agg7",
+   "core3"
+  ]
+ ],
+ "hosts": [
+  {
+   "name": "alice-host",
+   "nic": "enp4s0f1",
+   "switch": "alice",
+   "port": 1,
+   "prefix": "192.168.100.0/24",
+   "ip": "192.168.100.2",
+   "gateway": "192.168.100.1",
+   "vrf": "tor0"
+  },
+  {
+   "name": "alice-host2",
+   "nic": "enp76s0f1",
+   "switch": "alice",
+   "port": 14,
+   "prefix": "192.168.150.0/24",
+   "ip": "192.168.150.2",
+   "gateway": "192.168.150.1",
+   "vrf": "tor2"
+  },
+  {
+   "name": "bob-host",
+   "nic": "enp76s0f0",
+   "switch": "bob",
+   "port": 1,
+   "prefix": "192.168.200.0/24",
+   "ip": "192.168.200.2",
+   "gateway": "192.168.200.1",
+   "vrf": "tor4"
+  },
+  {
+   "name": "bob-host2",
+   "nic": "enp13s0f1",
+   "switch": "bob",
+   "port": 18,
+   "prefix": "192.168.250.0/24",
+   "ip": "192.168.250.2",
+   "gateway": "192.168.250.1",
+   "vrf": "tor6"
+  }
+ ]
+}

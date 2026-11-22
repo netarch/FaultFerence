@@ -1,0 +1,30 @@
+# ft_k4: 15 VRFs, 19 VRF links
+
+# hosts
+alice Ethernet1   <-> alice-host (enp4s0f1, 192.168.100.2) [vrf A0]
+alice Ethernet14  <-> alice-host2 (enp76s0f1, 192.168.150.2) [vrf A1]
+bob Ethernet1   <-> bob-host (enp76s0f0, 192.168.200.2) [vrf B0]
+bob Ethernet18  <-> bob-host2 (enp13s0f1, 192.168.250.2) [vrf B1]
+
+# VRF links (cable between the two ports)
+alice Ethernet3   [A0 172.31.0.1/30] <-> bob Ethernet3   [B1 172.31.0.2/30]
+alice Ethernet5   [A0 172.31.0.5/30] <-> bob Ethernet5   [B2 172.31.0.6/30]
+alice Ethernet7   [A0 172.31.0.9/30] <-> bob Ethernet7   [B3 172.31.0.10/30]
+alice Ethernet9   [A1 172.31.0.13/30] <-> bob Ethernet9   [B1 172.31.0.14/30]
+alice Ethernet11  [A2 172.31.0.17/30] <-> bob Ethernet11  [B1 172.31.0.18/30]
+alice Ethernet13  [A3 172.31.0.21/30] <-> bob Ethernet13  [B2 172.31.0.22/30]
+alice Ethernet15  [A4 172.31.0.25/30] <-> bob Ethernet15  [B2 172.31.0.26/30]
+alice Ethernet17  [A5 172.31.0.29/30] <-> bob Ethernet17  [B3 172.31.0.30/30]
+alice Ethernet19  [A6 172.31.0.33/30] <-> bob Ethernet19  [B3 172.31.0.34/30]
+alice Ethernet21  [A1 172.31.0.37/30] <-> bob Ethernet21  [B4 172.31.0.38/30]
+alice Ethernet23  [A2 172.31.0.41/30] <-> bob Ethernet23  [B4 172.31.0.42/30]
+alice Ethernet25  [A3 172.31.0.45/30] <-> bob Ethernet25  [B5 172.31.0.46/30]
+alice Ethernet27  [A4 172.31.0.49/30] <-> bob Ethernet27  [B5 172.31.0.50/30]
+alice Ethernet29  [A5 172.31.0.53/30] <-> bob Ethernet29  [B6 172.31.0.54/30]
+alice Ethernet31  [A6 172.31.0.57/30] <-> bob Ethernet31  [B6 172.31.0.58/30]
+alice Ethernet33  [A7 172.31.0.61/30] <-> bob Ethernet33  [B4 172.31.0.62/30]
+alice Ethernet35  [A7 172.31.0.65/30] <-> bob Ethernet35  [B5 172.31.0.66/30]
+alice Ethernet37  [A7 172.31.0.69/30] <-> bob Ethernet37  [B6 172.31.0.70/30]
+alice Ethernet39  [A7 172.31.0.73/30] <-> bob Ethernet39  [B0 172.31.0.74/30]
+
+# ports used: {'alice': 21, 'bob': 21}
