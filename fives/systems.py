@@ -109,6 +109,8 @@ class TelemetryRecord:
     packets_sent: int
     packets_bad: int
     path_weights: Tuple[Tuple[Tuple[int, ...], float], ...]
+    # Exact node path an active probe took (as traceroute reveals); () for non-probe records.
+    traced_path: Tuple[int, ...]
 
 
 @dataclass(frozen=True)
@@ -409,6 +411,7 @@ class NetworkSystem:
                         packets_sent=total_pkts,
                         packets_bad=bad_pkts,
                         path_weights=pw,
+                        traced_path=(),
                     )
                 )
             else:
@@ -437,6 +440,7 @@ class NetworkSystem:
                             packets_sent=flows_per_pair,
                             packets_bad=bad_flows,
                             path_weights=pw,
+                            traced_path=(),
                         )
                     )
                 else:
@@ -462,6 +466,7 @@ class NetworkSystem:
                             packets_sent=total_pkts,
                             packets_bad=bad_pkts,
                             path_weights=pw,
+                            traced_path=(),
                         )
                     )
 
@@ -485,6 +490,7 @@ class NetworkSystem:
                     packets_sent=perturbation.num_probes,
                     packets_bad=bad_probes,
                     path_weights=pw_probe,
+                    traced_path=chosen_sp,
                 )
             )
         elif isinstance(perturbation, PacketMirror):
@@ -515,6 +521,7 @@ class NetworkSystem:
                         packets_sent=n_mir,
                         packets_bad=bad_mir,
                         path_weights=pw_mir,
+                        traced_path=(),
                     )
                 )
 

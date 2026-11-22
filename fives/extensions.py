@@ -175,6 +175,7 @@ def simulate_multifault_and_batch_window(
                 packets_sent=total_pkts,
                 packets_bad=bad_pkts,
                 path_weights=pw,
+                traced_path=(),
             )
         )
 
@@ -196,6 +197,7 @@ def simulate_multifault_and_batch_window(
                     packets_sent=p.num_probes,
                     packets_bad=bad_probes,
                     path_weights=pw_probe,
+                    traced_path=chosen_sp,
                 )
             )
         elif isinstance(p, PacketMirror):
@@ -224,6 +226,7 @@ def simulate_multifault_and_batch_window(
                         packets_sent=n_mir,
                         packets_bad=bad_mir,
                         path_weights=pw_mir,
+                        traced_path=(),
                     )
                 )
 
@@ -723,7 +726,7 @@ def run_two_fault_episode(
     total_disrupt = 0.0
 
     if mode == "operator":
-        inf_op = SetIntersectionInference(system)
+        inf_op = SetIntersectionInference(system, path_aware=False)
         inf_op.reset(pool)
         inf_op.update(win0)
         rng_op = np.random.default_rng(rng_seed + 999)

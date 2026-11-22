@@ -5,6 +5,7 @@ import subprocess
 import numpy as np
 
 from fives import (
+    ActiveProbe,
     CheapestFirstOperatorPlanner,
     ExactOptimalPlanner,
     FailureMode,
@@ -18,6 +19,8 @@ from fives import (
     SafetyConfig,
     SafetyFilter,
     SetIntersectionInference,
+    TelemetryRecord,
+    TelemetryWindow,
     TwoPhaseImpactEstimator,
     load_campus_prod_system,
     load_edgelist_network,
@@ -75,7 +78,7 @@ def test_clos_silent_drop_and_baselines():
         net,
         spec,
         CheapestFirstOperatorPlanner(net, safety, impact, eff, np.random.default_rng(102)),
-        SetIntersectionInference(net),
+        SetIntersectionInference(net, path_aware=False),
         impact,
         np.random.default_rng(101),
     )
@@ -83,7 +86,7 @@ def test_clos_silent_drop_and_baselines():
         net,
         spec,
         NetPilotPlanner(net, safety, impact),
-        SetIntersectionInference(net),
+        SetIntersectionInference(net, path_aware=False),
         impact,
         np.random.default_rng(101),
         stop_on_symptom_mitigation=True,
@@ -92,7 +95,7 @@ def test_clos_silent_drop_and_baselines():
         net,
         spec,
         NetPilotPlanner(net, safety, impact),
-        SetIntersectionInference(net),
+        SetIntersectionInference(net, path_aware=False),
         impact,
         np.random.default_rng(101),
         stop_on_symptom_mitigation=False,
@@ -101,7 +104,7 @@ def test_clos_silent_drop_and_baselines():
         net,
         spec,
         RandomSafePlanner(net, safety, np.random.default_rng(103)),
-        SetIntersectionInference(net),
+        SetIntersectionInference(net, path_aware=False),
         impact,
         np.random.default_rng(101),
     )
@@ -436,3 +439,42 @@ def test_high_latency_failure_model():
     print(f"[Clos-k10 HighLatency] culprit={culprit} eq0={res.initial_eq_size} -> {res.final_eq_set} "
           f"in {res.num_perturbations} steps")
     assert res.recall == 1.0
+
+
+def test_path_aware_set_intersection_probe_verdicts():
+    net = load_edgelist_network(
+        os.path.join(TOPO_DIR, "ft_deg10_sw125_svr250_os3_bidir_false.edgelist"),
+        name="Clos-k10",
+    )
+    pair, _ = _pick_inter_pod_pair_and_core(net, np.random.default_rng(7))
+    sub_paths = net.shortest_paths(pair[0], pair[1])
+    traced = sub_paths[0]
+    pool = sorted({n for p in sub_paths for n in p})
+    probe = ActiveProbe(pair[0], pair[1], pair)
+    w = 1.0 / len(sub_paths)
+
+    def window(bad: int) -> TelemetryWindow:
+        rec = TelemetryRecord(
+            pair=pair, is_probe=True, is_mirror=False, mirror_node=-1, packets_sent=200, packets_bad=bad,
+            path_weights=tuple((sp, w) for sp in sub_paths), traced_path=traced,
+        )
+        return TelemetryWindow(perturbation=probe, records=(rec,), fault_was_active=True)
+
+    # Passed probe: legacy exonerates every ECMP sub-path; path-aware only the traced one.
+    legacy, aware = SetIntersectionInference(net, path_aware=False), SetIntersectionInference(net, path_aware=True)
+    for inf in (legacy, aware):
+        inf.reset(pool)
+        inf.update(window(0))
+    assert legacy.equivalence_set() == set(pool)  # nothing left to exonerate -> set unchanged
+    assert aware.equivalence_set() == set(pool) - set(traced)
+
+    # One bad probe at bg=1e-4: legacy calls it failed; the binomial test (p ~= 0.02) does not.
+    legacy, aware = SetIntersectionInference(net, path_aware=False), SetIntersectionInference(net, path_aware=True)
+    for inf in (legacy, aware):
+        inf.reset(pool)
+        inf.update(window(1))
+    assert legacy.equivalence_set() == set(pool)  # intersect with all sub-path nodes = pool
+    assert aware.equivalence_set() == set(pool) - set(traced)
+    aware.reset(pool)
+    aware.update(window(3))
+    assert aware.equivalence_set() == set(traced)

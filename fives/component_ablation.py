@@ -59,9 +59,9 @@ def _eval_ablation_domain(args: Tuple[str, str, int]) -> Tuple[str, Dict]:
                 )
                 seed_m = 9500 + comp * 10 + rep
                 runs_cfg = [
-                    ("Operator (Trad + Pass/Fail)", CheapestFirstOperatorPlanner(ms, s_m, i_m, e_m, np.random.default_rng(seed_m + 1)), SetIntersectionInference(ms)),
+                    ("Operator (Trad + Pass/Fail)", CheapestFirstOperatorPlanner(ms, s_m, i_m, e_m, np.random.default_rng(seed_m + 1)), SetIntersectionInference(ms, path_aware=False)),
                     ("Operator + Bayesian (Trad)", CheapestFirstOperatorPlanner(ms, s_m, i_m, e_m, np.random.default_rng(seed_m + 1)), MultiRoundBayesianPGM(ms, excluded_endpoints={0, 10})),
-                    ("NetPilot-Loc (Mitig + Pass/Fail)", NetPilotPlanner(ms, s_m, i_m), SetIntersectionInference(ms)),
+                    ("NetPilot-Loc (Mitig + Pass/Fail)", NetPilotPlanner(ms, s_m, i_m), SetIntersectionInference(ms, path_aware=False)),
                     ("NetPilot-Loc + Bayesian", NetPilotPlanner(ms, s_m, i_m), MultiRoundBayesianPGM(ms, excluded_endpoints={0, 10})),
                     ("FIVES (Trad Menu Only)", TradMenuFivesPlanner(ms, s_m, i_m, e_m, tradeoff_lambda=0.7), MultiRoundBayesianPGM(ms, excluded_endpoints={0, 10})),
                     ("FIVES (Full Menu)", FivesPlanner(ms, s_m, i_m, e_m, tradeoff_lambda=0.7), MultiRoundBayesianPGM(ms, excluded_endpoints={0, 10})),
@@ -89,9 +89,9 @@ def _eval_ablation_domain(args: Tuple[str, str, int]) -> Tuple[str, Dict]:
         spec = FailureSpec(FailureMode.SILENT_DROP, culprit, pairs, drop_prob=0.03)
         seed_ep = 6200 + t
         runs_cfg = [
-            ("Operator (Trad + Pass/Fail)", CheapestFirstOperatorPlanner(net, s_n, i_n, e_n, np.random.default_rng(seed_ep + 1)), SetIntersectionInference(net)),
+            ("Operator (Trad + Pass/Fail)", CheapestFirstOperatorPlanner(net, s_n, i_n, e_n, np.random.default_rng(seed_ep + 1)), SetIntersectionInference(net, path_aware=False)),
             ("Operator + Bayesian (Trad)", CheapestFirstOperatorPlanner(net, s_n, i_n, e_n, np.random.default_rng(seed_ep + 1)), MultiRoundBayesianPGM(net)),
-            ("NetPilot-Loc (Mitig + Pass/Fail)", NetPilotPlanner(net, s_n, i_n), SetIntersectionInference(net)),
+            ("NetPilot-Loc (Mitig + Pass/Fail)", NetPilotPlanner(net, s_n, i_n), SetIntersectionInference(net, path_aware=False)),
             ("NetPilot-Loc + Bayesian", NetPilotPlanner(net, s_n, i_n), MultiRoundBayesianPGM(net)),
             ("FIVES (Trad Menu Only)", TradMenuFivesPlanner(net, s_n, i_n, e_n, tradeoff_lambda=0.5), MultiRoundBayesianPGM(net)),
             ("FIVES (Full Menu)", FivesPlanner(net, s_n, i_n, e_n, tradeoff_lambda=0.5), MultiRoundBayesianPGM(net)),

@@ -98,10 +98,10 @@ def run_topology_benchmark(topo_file: str, name: str, trials: int = 30, drop_pro
 
         configs = [
             ("FIVES", FivesPlanner(net, safety, impact, eff, tradeoff_lambda=0.5), MultiRoundBayesianPGM(net), False),
-            ("Operator", CheapestFirstOperatorPlanner(net, safety, impact, eff, np.random.default_rng(seed_ep + 1)), SetIntersectionInference(net), False),
-            ("NetPilot-Loc", NetPilotPlanner(net, safety, impact), SetIntersectionInference(net), False),
-            ("NetPilot-Mitig", NetPilotPlanner(net, safety, impact), SetIntersectionInference(net), True),
-            ("Random", RandomSafePlanner(net, safety, np.random.default_rng(seed_ep + 2)), SetIntersectionInference(net), False),
+            ("Operator", CheapestFirstOperatorPlanner(net, safety, impact, eff, np.random.default_rng(seed_ep + 1)), SetIntersectionInference(net, path_aware=False), False),
+            ("NetPilot-Loc", NetPilotPlanner(net, safety, impact), SetIntersectionInference(net, path_aware=False), False),
+            ("NetPilot-Mitig", NetPilotPlanner(net, safety, impact), SetIntersectionInference(net, path_aware=False), True),
+            ("Random", RandomSafePlanner(net, safety, np.random.default_rng(seed_ep + 2)), SetIntersectionInference(net, path_aware=False), False),
         ]
         for label, planner, inf, mitig_stop in configs:
             res = run_episode(

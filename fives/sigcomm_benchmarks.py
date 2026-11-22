@@ -58,10 +58,10 @@ def _eval_topology_shard(args: Tuple[str, str, int, int, float]) -> Tuple[str, i
 
         configs = [
             ("FIVES", FivesPlanner(net, safety, impact, eff, tradeoff_lambda=0.5), MultiRoundBayesianPGM(net), False),
-            ("Operator", CheapestFirstOperatorPlanner(net, safety, impact, eff, np.random.default_rng(seed_ep + 1)), SetIntersectionInference(net), False),
-            ("NetPilot-Loc", NetPilotPlanner(net, safety, impact), SetIntersectionInference(net), False),
-            ("NetPilot-Mitig", NetPilotPlanner(net, safety, impact), SetIntersectionInference(net), True),
-            ("Random", RandomSafePlanner(net, safety, np.random.default_rng(seed_ep + 2)), SetIntersectionInference(net), False),
+            ("Operator", CheapestFirstOperatorPlanner(net, safety, impact, eff, np.random.default_rng(seed_ep + 1)), SetIntersectionInference(net, path_aware=False), False),
+            ("NetPilot-Loc", NetPilotPlanner(net, safety, impact), SetIntersectionInference(net, path_aware=False), False),
+            ("NetPilot-Mitig", NetPilotPlanner(net, safety, impact), SetIntersectionInference(net, path_aware=False), True),
+            ("Random", RandomSafePlanner(net, safety, np.random.default_rng(seed_ep + 2)), SetIntersectionInference(net, path_aware=False), False),
         ]
         for scheme, planner, inf, mitig_stop in configs:
             res = run_episode(
@@ -236,7 +236,7 @@ def _run_ablation_task(task_name: str, trials: int = 30) -> Tuple[str, Dict]:
                 )
                 r_o = run_episode(
                     net_c, spec, CheapestFirstOperatorPlanner(net_c, s_c, true_imp, e_c, np.random.default_rng(8100 + t)),
-                    SetIntersectionInference(net_c), true_imp,
+                    SetIntersectionInference(net_c, path_aware=False), true_imp,
                     np.random.default_rng(8000 + t), max_steps=25, stall_patience=6,
                 )
                 for bkt, rx in [(fives_i, r_f), (op_i, r_o)]:
@@ -261,9 +261,9 @@ def _run_ablation_task(task_name: str, trials: int = 30) -> Tuple[str, Dict]:
                 seed_m = 9500 + comp * 10 + rep
                 for lbl, pl, inf in [
                     ("FIVES", FivesPlanner(ms, s_m, i_m, e_m, tradeoff_lambda=0.7), MultiRoundBayesianPGM(ms, excluded_endpoints={0, 10})),
-                    ("Operator", CheapestFirstOperatorPlanner(ms, s_m, i_m, e_m, np.random.default_rng(seed_m + 1)), SetIntersectionInference(ms)),
-                    ("NetPilot-Loc", NetPilotPlanner(ms, s_m, i_m), SetIntersectionInference(ms)),
-                    ("Random", RandomSafePlanner(ms, s_m, np.random.default_rng(seed_m + 2)), SetIntersectionInference(ms)),
+                    ("Operator", CheapestFirstOperatorPlanner(ms, s_m, i_m, e_m, np.random.default_rng(seed_m + 1)), SetIntersectionInference(ms, path_aware=False)),
+                    ("NetPilot-Loc", NetPilotPlanner(ms, s_m, i_m), SetIntersectionInference(ms, path_aware=False)),
+                    ("Random", RandomSafePlanner(ms, s_m, np.random.default_rng(seed_m + 2)), SetIntersectionInference(ms, path_aware=False)),
                 ]:
                     rx = run_episode(ms, spec, pl, inf, i_m, np.random.default_rng(seed_m), candidate_pool=list(range(1, 10)))
                     ms_buckets[lbl].append({

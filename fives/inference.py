@@ -4,6 +4,7 @@ import math
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 import numpy as np
 from scipy.special import logsumexp
+from scipy.stats import binom
 
 from .perturbations import ActiveProbe, ComponentReset, FlowLinkDrain, FullLinkDrain, PacketMirror, SubtleWeightShift
 from .systems import NetworkSystem, TelemetryRecord, TelemetryWindow
@@ -31,10 +32,20 @@ class InferenceEngine:
 
 
 class SetIntersectionInference(InferenceEngine):
-    """Deterministic split-intersection inference with statistical rate-shift checks (human/basic mode)."""
+    """Deterministic split-intersection inference with statistical rate-shift checks (human/basic mode).
 
-    def __init__(self, system: NetworkSystem, bg_noise_prob: float = 1.0e-4):
+    path_aware=False (legacy): a probe/mirror is judged bad if >= 1 bad unit and rate > 10x background,
+      and a probe's verdict applies to every node on every ECMP sub-path between its endpoints.
+    path_aware=True: a probe/mirror is judged bad iff a one-sided binomial test against the background
+      rate rejects at PATH_AWARE_ALPHA, and a probe's verdict applies only to the nodes on the exact path
+      it took (`TelemetryRecord.traced_path`, as traceroute reveals).
+    """
+
+    PATH_AWARE_ALPHA = 1.0e-3
+
+    def __init__(self, system: NetworkSystem, path_aware: bool, bg_noise_prob: float = 1.0e-4):
         self.system = system
+        self.path_aware = path_aware
         self.bg_noise_prob = bg_noise_prob
         self.suspects: Set[int] = set()
         self.baseline_bad_rate: Dict[Tuple[int, int], float] = {}
@@ -42,6 +53,14 @@ class SetIntersectionInference(InferenceEngine):
     def reset(self, candidate_nodes: Sequence[int]) -> None:
         self.suspects = set(candidate_nodes)
         self.baseline_bad_rate = {}
+
+    def _is_anomalous(self, rec: TelemetryRecord) -> bool:
+        """Whether a probe / mirror record shows bad units beyond background noise."""
+        if self.path_aware:
+            p_value = float(binom.sf(rec.packets_bad - 1, rec.packets_sent, self.bg_noise_prob))
+            return p_value < self.PATH_AWARE_ALPHA
+        rate = float(rec.packets_bad) / float(max(1, rec.packets_sent))
+        return (rec.packets_bad >= 1) and (rate > 10.0 * self.bg_noise_prob)
 
     def update(self, window: TelemetryWindow) -> None:
         if window.perturbation is None:
@@ -74,11 +93,13 @@ class SetIntersectionInference(InferenceEngine):
             assert len(probe_recs) == 1
             pr = probe_recs[0]
             sub_nodes: Set[int] = set()
-            for path, _ in pr.path_weights:
-                sub_nodes.update(path)
-            # Probe hit failure if bad rate significantly exceeds background noise
-            probe_rate = float(pr.packets_bad) / float(max(1, pr.packets_sent))
-            probe_failed = (pr.packets_bad >= 1) and (probe_rate > 10.0 * self.bg_noise_prob)
+            if self.path_aware:
+                assert len(pr.traced_path) > 0
+                sub_nodes.update(pr.traced_path)
+            else:
+                for path, _ in pr.path_weights:
+                    sub_nodes.update(path)
+            probe_failed = self._is_anomalous(pr)
             next_set = (self.suspects & sub_nodes) if probe_failed else (self.suspects - sub_nodes)
             if len(next_set) > 0:
                 self.suspects = next_set
@@ -91,8 +112,7 @@ class SetIntersectionInference(InferenceEngine):
                 up_nodes: Set[int] = set()
                 for path, _ in mr.path_weights:
                     up_nodes.update(path)
-                mir_rate = float(mr.packets_bad) / float(max(1, mr.packets_sent))
-                seen_upstream = (mr.packets_bad >= 1) and (mir_rate > 10.0 * self.bg_noise_prob)
+                seen_upstream = self._is_anomalous(mr)
                 next_set = (self.suspects & up_nodes) if seen_upstream else (self.suspects - up_nodes)
                 if len(next_set) > 0:
                     self.suspects = next_set
