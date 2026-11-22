@@ -152,16 +152,23 @@ class SetIntersectionInference(InferenceEngine):
 
 
 class MultiRoundBayesianPGM(InferenceEngine):
-    """Stateful Multi-Round Bayesian Graphical Model fusing telemetry across all perturbed states."""
+    """Stateful Multi-Round Bayesian Graphical Model fusing telemetry across all perturbed states.
+
+    path_aware=False: an active probe's likelihood is a mixture over the ECMP sub-paths it may have hashed
+      onto. path_aware=True: the probe's exact path is known (`TelemetryRecord.traced_path`, as traceroute
+      reveals) and the likelihood conditions on it.
+    """
 
     def __init__(
         self,
         system: NetworkSystem,
+        path_aware: bool,
         bg_noise_prob: float = 1.0e-4,
         duty_cycle_prior: float = 1.0,
         excluded_endpoints: Optional[Set[int]] = None,
     ):
         self.system = system
+        self.path_aware = path_aware
         self.bg_noise_prob = bg_noise_prob
         self.duty_cycle_prior = duty_cycle_prior
         self.excluded_endpoints = excluded_endpoints if excluded_endpoints is not None else set()
@@ -219,6 +226,11 @@ class MultiRoundBayesianPGM(InferenceEngine):
         hit_w = sum(w for path, w in rec.path_weights if node in path)
         if hit_w <= 0.0:
             return _binom_logpmf(rec.packets_bad, rec.packets_sent, self.bg_noise_prob)
+
+        if rec.is_probe and self.path_aware:
+            assert len(rec.traced_path) > 0
+            p_unit = p_drop if node in rec.traced_path else self.bg_noise_prob
+            return _binom_logpmf(rec.packets_bad, rec.packets_sent, p_unit)
 
         if rec.is_probe:
             lp_hit = _binom_logpmf(rec.packets_bad, rec.packets_sent, p_drop)

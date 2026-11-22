@@ -57,7 +57,7 @@ def _eval_topology_shard(args: Tuple[str, str, int, int, float]) -> Tuple[str, i
         seed_ep = 5000 + t
 
         configs = [
-            ("FIVES", FivesPlanner(net, safety, impact, eff, tradeoff_lambda=0.5), MultiRoundBayesianPGM(net), False),
+            ("FIVES", FivesPlanner(net, safety, impact, eff, tradeoff_lambda=0.5), MultiRoundBayesianPGM(net, path_aware=False), False),
             ("Operator", CheapestFirstOperatorPlanner(net, safety, impact, eff, np.random.default_rng(seed_ep + 1)), SetIntersectionInference(net, path_aware=False), False),
             ("NetPilot-Loc", NetPilotPlanner(net, safety, impact), SetIntersectionInference(net, path_aware=False), False),
             ("NetPilot-Mitig", NetPilotPlanner(net, safety, impact), SetIntersectionInference(net, path_aware=False), True),
@@ -105,7 +105,7 @@ def _run_ablation_task(task_name: str, trials: int = 30) -> Tuple[str, Dict]:
                 ("k=2", FivesPlanner(b4, s_b4, i_b4, e_b4, tradeoff_lambda=0.5, lookahead_k=2)),
                 ("k=3", FivesPlanner(b4, s_b4, i_b4, e_b4, tradeoff_lambda=0.5, lookahead_k=3)),
             ]:
-                res = run_episode(b4, spec, pl, MultiRoundBayesianPGM(b4, bg_noise_prob=1.0e-6), i_b4, np.random.default_rng(900 + t))
+                res = run_episode(b4, spec, pl, MultiRoundBayesianPGM(b4, path_aware=False, bg_noise_prob=1.0e-6), i_b4, np.random.default_rng(900 + t))
                 sc = sum(st.impact.scalar_cost(0.5) for st in res.trajectory[1:])
                 lookahead_stats[tag].append(sc)
         return task_name, {k: float(np.mean(v)) for k, v in lookahead_stats.items()}
@@ -136,7 +136,7 @@ def _run_ablation_task(task_name: str, trials: int = 30) -> Tuple[str, Dict]:
                 res = run_episode(
                     net_x, spec,
                     FivesPlanner(net_x, SafetyFilter(net_x), imp_x, MultiOutcomeEfficacyEstimator(net_x), tradeoff_lambda=0.85),
-                    MultiRoundBayesianPGM(net_x), imp_x, np.random.default_rng(1200 + t),
+                    MultiRoundBayesianPGM(net_x, path_aware=False), imp_x, np.random.default_rng(1200 + t),
                 )
                 bucket.append({
                     "steps": res.num_perturbations, "ttl": res.total_ttl_sec,
@@ -160,7 +160,7 @@ def _run_ablation_task(task_name: str, trials: int = 30) -> Tuple[str, Dict]:
                 res = run_episode(
                     net_c, spec,
                     FivesPlanner(net_c, s_c, noisy_imp, e_c, tradeoff_lambda=0.5),
-                    MultiRoundBayesianPGM(net_c), true_imp, np.random.default_rng(3000 + t),
+                    MultiRoundBayesianPGM(net_c, path_aware=False), true_imp, np.random.default_rng(3000 + t),
                 )
                 runs_sig.append({
                     "steps": res.num_perturbations, "ttl": res.total_ttl_sec,
@@ -184,7 +184,7 @@ def _run_ablation_task(task_name: str, trials: int = 30) -> Tuple[str, Dict]:
                 res = run_episode(
                     net_c, spec,
                     FivesPlanner(net_c, s_c, true_imp, e_c, tradeoff_lambda=lam),
-                    MultiRoundBayesianPGM(net_c), true_imp, np.random.default_rng(4000 + t),
+                    MultiRoundBayesianPGM(net_c, path_aware=False), true_imp, np.random.default_rng(4000 + t),
                 )
                 runs_l.append({
                     "steps": res.num_perturbations, "ttl": res.total_ttl_sec,
@@ -207,7 +207,7 @@ def _run_ablation_task(task_name: str, trials: int = 30) -> Tuple[str, Dict]:
                 spec = FailureSpec(FailureMode.SILENT_DROP, culprit, pairs, drop_prob=0.03)
                 res = run_episode(
                     net_c, spec, FivesPlanner(net_c, s_c, true_imp, e_c),
-                    MultiRoundBayesianPGM(net_c), true_imp, np.random.default_rng(6000 + t),
+                    MultiRoundBayesianPGM(net_c, path_aware=False), true_imp, np.random.default_rng(6000 + t),
                 )
                 runs_mf.append({
                     "steps": res.num_perturbations, "ttl": res.total_ttl_sec,
@@ -231,7 +231,7 @@ def _run_ablation_task(task_name: str, trials: int = 30) -> Tuple[str, Dict]:
                 spec = FailureSpec(mode, culprit, pairs, drop_prob=0.06, duty_cycle=duty)
                 r_f = run_episode(
                     net_c, spec, FivesPlanner(net_c, s_c, true_imp, e_c, allow_repeat_noisy=(duty < 1.0)),
-                    MultiRoundBayesianPGM(net_c, duty_cycle_prior=duty), true_imp,
+                    MultiRoundBayesianPGM(net_c, path_aware=False, duty_cycle_prior=duty), true_imp,
                     np.random.default_rng(8000 + t), max_steps=25, stall_patience=6,
                 )
                 r_o = run_episode(
@@ -260,7 +260,7 @@ def _run_ablation_task(task_name: str, trials: int = 30) -> Tuple[str, Dict]:
                 )
                 seed_m = 9500 + comp * 10 + rep
                 for lbl, pl, inf in [
-                    ("FIVES", FivesPlanner(ms, s_m, i_m, e_m, tradeoff_lambda=0.7), MultiRoundBayesianPGM(ms, excluded_endpoints={0, 10})),
+                    ("FIVES", FivesPlanner(ms, s_m, i_m, e_m, tradeoff_lambda=0.7), MultiRoundBayesianPGM(ms, path_aware=False, excluded_endpoints={0, 10})),
                     ("Operator", CheapestFirstOperatorPlanner(ms, s_m, i_m, e_m, np.random.default_rng(seed_m + 1)), SetIntersectionInference(ms, path_aware=False)),
                     ("NetPilot-Loc", NetPilotPlanner(ms, s_m, i_m), SetIntersectionInference(ms, path_aware=False)),
                     ("Random", RandomSafePlanner(ms, s_m, np.random.default_rng(seed_m + 2)), SetIntersectionInference(ms, path_aware=False)),

@@ -387,7 +387,7 @@ def run_parallel_episode(
     impact = TwoPhaseImpactEstimator(system)
     efficacy = MultiOutcomeEfficacyEstimator(system)
     excluded = {ep for pair in failure.affected_pairs for ep in pair}
-    inf = MultiRoundBayesianPGM(system, bg_noise_prob=failure.bg_noise_prob, excluded_endpoints=excluded)
+    inf = MultiRoundBayesianPGM(system, path_aware=False, bg_noise_prob=failure.bg_noise_prob, excluded_endpoints=excluded)
 
     pool = sorted({
         n

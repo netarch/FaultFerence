@@ -70,7 +70,7 @@ def test_clos_silent_drop_and_baselines():
         net,
         spec,
         FivesPlanner(net, safety, impact, eff, tradeoff_lambda=0.5, lookahead_k=1),
-        MultiRoundBayesianPGM(net),
+        MultiRoundBayesianPGM(net, path_aware=False),
         impact,
         np.random.default_rng(101),
     )
@@ -150,7 +150,7 @@ def test_exact_optimal_vs_greedy_and_lookahead():
             ("k=1", FivesPlanner(net, safety, impact, eff, tradeoff_lambda=0.5, lookahead_k=1)),
             ("k=2", FivesPlanner(net, safety, impact, eff, tradeoff_lambda=0.5, lookahead_k=2)),
         ]:
-            res = run_episode(net, spec, pl, MultiRoundBayesianPGM(net, bg_noise_prob=1.0e-6), impact, np.random.default_rng(42 + c))
+            res = run_episode(net, spec, pl, MultiRoundBayesianPGM(net, path_aware=False, bg_noise_prob=1.0e-6), impact, np.random.default_rng(42 + c))
             step_c = sum(t.impact.scalar_cost(0.5) for t in res.trajectory[1:])
             costs[tag].append(step_c)
             assert res.recall == 1.0
@@ -198,7 +198,7 @@ def test_subtle_perturbations_and_dlb():
         net_subtle,
         spec,
         FivesPlanner(net_subtle, SafetyFilter(net_subtle), imp_s, MultiOutcomeEfficacyEstimator(net_subtle), tradeoff_lambda=0.85),
-        MultiRoundBayesianPGM(net_subtle),
+        MultiRoundBayesianPGM(net_subtle, path_aware=False),
         imp_s,
         np.random.default_rng(55),
     )
@@ -208,7 +208,7 @@ def test_subtle_perturbations_and_dlb():
         net_hard,
         spec,
         FivesPlanner(net_hard, SafetyFilter(net_hard), imp_h, MultiOutcomeEfficacyEstimator(net_hard), tradeoff_lambda=0.85),
-        MultiRoundBayesianPGM(net_hard),
+        MultiRoundBayesianPGM(net_hard, path_aware=False),
         imp_h,
         np.random.default_rng(55),
     )
@@ -245,8 +245,8 @@ def test_intermittent_and_multiflow():
     # 1. Multi-flow correlation shrinks initial equivalence / total steps
     spec_1 = FailureSpec(FailureMode.SILENT_DROP, culprit, (pair1,), drop_prob=0.04)
     spec_2 = FailureSpec(FailureMode.SILENT_DROP, culprit, (pair1, pair2), drop_prob=0.04)
-    r1 = run_episode(net, spec_1, FivesPlanner(net, safety, impact, eff), MultiRoundBayesianPGM(net), impact, np.random.default_rng(77))
-    r2 = run_episode(net, spec_2, FivesPlanner(net, safety, impact, eff), MultiRoundBayesianPGM(net), impact, np.random.default_rng(77))
+    r1 = run_episode(net, spec_1, FivesPlanner(net, safety, impact, eff), MultiRoundBayesianPGM(net, path_aware=False), impact, np.random.default_rng(77))
+    r2 = run_episode(net, spec_2, FivesPlanner(net, safety, impact, eff), MultiRoundBayesianPGM(net, path_aware=False), impact, np.random.default_rng(77))
     print(f"[Multi-Flow] 1-pair steps={r1.num_perturbations} (eq0={r1.initial_eq_size}) -> 2-pair steps={r2.num_perturbations} (eq0={r2.initial_eq_size})")
     assert r1.recall == 1.0 and r2.recall == 1.0
     assert r2.num_perturbations <= r1.num_perturbations
@@ -257,7 +257,7 @@ def test_intermittent_and_multiflow():
         net,
         spec_int,
         FivesPlanner(net, safety, impact, eff, allow_repeat_noisy=True),
-        MultiRoundBayesianPGM(net, duty_cycle_prior=0.55),
+        MultiRoundBayesianPGM(net, path_aware=False, duty_cycle_prior=0.55),
         impact,
         np.random.default_rng(88),
         max_steps=25,
@@ -301,7 +301,7 @@ def test_prod_campus_structured_constraints():
         prod,
         spec,
         FivesPlanner(prod, safety, impact, eff),
-        MultiRoundBayesianPGM(prod),
+        MultiRoundBayesianPGM(prod, path_aware=False),
         impact,
         np.random.default_rng(202),
     )
@@ -333,7 +333,7 @@ def test_microservices_generality():
         ms,
         spec,
         FivesPlanner(ms, safety, impact, eff, tradeoff_lambda=0.7),
-        MultiRoundBayesianPGM(ms, excluded_endpoints={0, 10}),
+        MultiRoundBayesianPGM(ms, path_aware=False, excluded_endpoints={0, 10}),
         impact,
         np.random.default_rng(9),
         candidate_pool=list(range(1, 10)),
@@ -432,7 +432,7 @@ def test_high_latency_failure_model():
         net,
         spec,
         FivesPlanner(net, SafetyFilter(net), TwoPhaseImpactEstimator(net), MultiOutcomeEfficacyEstimator(net)),
-        MultiRoundBayesianPGM(net, bg_noise_prob=spec.unit_bad_prob(False)),
+        MultiRoundBayesianPGM(net, path_aware=False, bg_noise_prob=spec.unit_bad_prob(False)),
         TwoPhaseImpactEstimator(net),
         np.random.default_rng(12),
     )

@@ -94,6 +94,7 @@ class SafetyConfig:
     max_unfiltered_mirror_load: float = 0.35
     enable_subtle_weight_shifts: bool = True
     enable_group_splits: bool = True
+    enable_flow_link_drains: bool = True
     enable_packet_mirror: bool = False
     enable_component_reset: bool = True
 
@@ -318,7 +319,8 @@ class NetworkSystem:
                 if len(paths) > 1:
                     for idx in range(len(path) - 1):
                         u, v = path[idx], path[idx + 1]
-                        add(FlowLinkDrain(u, v, pair))
+                        if self.safety.enable_flow_link_drains:
+                            add(FlowLinkDrain(u, v, pair))
                         if self.safety.enable_subtle_weight_shifts:
                             add(SubtleWeightShift(u, v, 0.20, pair))
 
