@@ -52,7 +52,7 @@ num_steps=0
 eq_devices=""
 eq_size=0
 
-PYTHON_BIN=${PYTHON_BIN:-/usr/local/google/home/rahulbothra/faultference/.venv/bin/python}
+PYTHON_BIN=${PYTHON_BIN:-python3}
 FAILURE_MODE=${FAILURE_MODE:-blackhole}
 
 while [ ${iter} -le ${maxiter} ]
