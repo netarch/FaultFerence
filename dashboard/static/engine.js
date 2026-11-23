@@ -955,13 +955,9 @@
     if (p.kind === "component_reset") {
       if (cfg.resetBanned.has(p.node)) return `Protected spine (${net.nodeName(p.node)})`;
       if (cfg.externalBlackbox.has(p.node)) return `External peer (${net.nodeName(p.node)})`;
-      for (const pair of pairs) {
-        if (p.node === pair[0] || p.node === pair[1]) {
-          return `Flow endpoint (${net.nodeName(p.node)})`;
-        }
-      }
       if (net.articulationPoints.has(p.node)) {
         for (const pair of pairs) {
+          if (p.node === pair[0] || p.node === pair[1]) continue;
           if (!net.hasPathWithoutNode(pair[0], pair[1], p.node)) {
             return "Single point of failure";
           }
@@ -2470,17 +2466,19 @@
       };
 
       for (const pair of pairs) {
+        const src = pair[0];
         const dst = pair[1];
         for (const n of this.nodes) {
           if (n !== dst) add(makeProbe(n, dst, pair));
-          if (this.net.safety.enablePacketMirror && n !== pair[0] && n !== pair[1]) {
+          else if (n !== src) add(makeProbe(dst, src, pair));
+          if (this.net.safety.enablePacketMirror) {
             const filt = !this.net.safety.mirrorUnfilteredOnly.has(n);
             add(makeMirror(n, filt, pair));
           }
         }
       }
       if (this.net.safety.enableComponentReset) {
-        for (const n of this.pool) add(makeReset(n));
+        for (const n of this.nodes) add(makeReset(n));
       }
 
       const planeOrder = { telemetry: 0, control: 1, physical: 2 };
@@ -2651,8 +2649,8 @@
         };
       }
       const nid = Number(nodeId);
-      if (!this.pool.includes(nid)) {
-        throw new Error(`Switch ${nid} is not an interior suspect`);
+      if (!this.nodes.includes(nid)) {
+        throw new Error(`Switch ${nid} is not in this room`);
       }
       this.accusedNode = nid;
       this.nActions += 1;

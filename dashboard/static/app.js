@@ -592,7 +592,7 @@ function closePopover() {
 }
 
 function actionExplain(a) {
-  if (a.kind === "active_probe") return "Sends test pings from here to receiver to see if they drop.";
+  if (a.kind === "active_probe") return "Sends test pings across the path from here to see if they drop.";
   if (a.kind === "packet_mirror") return "Checks packets passing here to see if loss started upstream.";
   if (a.kind === "subtle_weight_shift") return "Shifts most of the flow onto sibling links without cutting this link.";
   if (a.kind === "flow_link_drain") return "Reroutes the affected flow around this link.";
@@ -643,7 +643,7 @@ function openPopover(target, filterKind = null) {
     const n = nodeById(target.id);
     $("pop-title").innerHTML = `${Sprites.icon("rack", 18)} <span>${n.name}</span>`;
     if (n.is_endpoint) {
-      pill.textContent = "Edge Switch";
+      pill.textContent = "ToR Switch";
       pill.className = "status-pill edge";
     } else if (n.suspect) {
       pill.textContent = "Suspect";
@@ -734,24 +734,22 @@ function openPopover(target, filterKind = null) {
 
   if (target.type === "node" && !filterKind) {
     const n = nodeById(target.id);
-    if (n.in_pool) {
-      const accBtn = document.createElement("button");
-      accBtn.type = "button";
-      accBtn.disabled = gameDone;
-      accBtn.className = "act-btn accuse-btn";
-      accBtn.innerHTML = `
-        <span class="act-ic">${Sprites.icon("accuse", 22)}</span>
-        <div class="act-main">
-          <div class="act-t"><span>Accuse as Faulty</span></div>
-          <div class="act-s">Declare this switch the culprit and close the case.</div>
-        </div>
-      `;
-      accBtn.addEventListener("click", (ev) => {
-        ev.stopPropagation();
-        accuseSwitch(n.id);
-      });
-      list.appendChild(accBtn);
-    }
+    const accBtn = document.createElement("button");
+    accBtn.type = "button";
+    accBtn.disabled = gameDone;
+    accBtn.className = "act-btn accuse-btn";
+    accBtn.innerHTML = `
+      <span class="act-ic">${Sprites.icon("accuse", 22)}</span>
+      <div class="act-main">
+        <div class="act-t"><span>Accuse as Faulty</span></div>
+        <div class="act-s">Declare this switch the culprit and close the case.</div>
+      </div>
+    `;
+    accBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      accuseSwitch(n.id);
+    });
+    list.appendChild(accBtn);
   }
 
   if (wasHidden) Sound.sfx("ui");
