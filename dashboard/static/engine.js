@@ -2713,13 +2713,15 @@
       const multi = this.failure.affectedPairs.length > 1;
       const eqSorted = Array.from(this.eqSet).sort((a, b) => a - b);
 
-      const rows = ranking.slice(0, top).map(({ score, ig, pert }) => {
+      const limit = top > 0 ? top : ranking.length;
+      const rows = ranking.slice(0, limit).map(({ score, ig, pert }, idx) => {
         const imp = estimateImpact(this.net, pert, est);
         const d = actionToJson(this.net, pert, multi);
         const buckets = Array.from(
           partitionSuspects(this.net, pert, eqSorted, this.failure.affectedPairs).values()
         );
         buckets.sort((a, b) => b.group.length - a.group.length);
+        d.rank = idx + 1;
         d.score = Math.round(score * 1000) / 1000;
         d.info_gain_bits = Math.round(ig * 1000) / 1000;
         d.est_time = Math.round(imp.totalTimeSec * 100) / 100;

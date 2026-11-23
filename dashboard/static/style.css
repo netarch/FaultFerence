@@ -424,21 +424,25 @@ kbd {
 }
 
 /* ---------- Themed Paper-and-Ink Scrollbars ---------- */
-.pop-list, .wordle-scroll, .deck-sheet, .end-emoji {
+.pop-list, .wordle-scroll, .deck-sheet, .end-emoji, .fives-rank-rows, .start-card {
   scrollbar-width: thin;
   scrollbar-color: #bfb6a2 #f3efe4;
 }
 .pop-list::-webkit-scrollbar,
 .wordle-scroll::-webkit-scrollbar,
 .deck-sheet::-webkit-scrollbar,
-.end-emoji::-webkit-scrollbar {
+.end-emoji::-webkit-scrollbar,
+.fives-rank-rows::-webkit-scrollbar,
+.start-card::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 .pop-list::-webkit-scrollbar-track,
 .wordle-scroll::-webkit-scrollbar-track,
 .deck-sheet::-webkit-scrollbar-track,
-.end-emoji::-webkit-scrollbar-track {
+.end-emoji::-webkit-scrollbar-track,
+.fives-rank-rows::-webkit-scrollbar-track,
+.start-card::-webkit-scrollbar-track {
   background: #f3efe4;
   border-radius: 99px;
   border: 1px solid #e3dccb;
@@ -446,7 +450,9 @@ kbd {
 .pop-list::-webkit-scrollbar-thumb,
 .wordle-scroll::-webkit-scrollbar-thumb,
 .deck-sheet::-webkit-scrollbar-thumb,
-.end-emoji::-webkit-scrollbar-thumb {
+.end-emoji::-webkit-scrollbar-thumb,
+.fives-rank-rows::-webkit-scrollbar-thumb,
+.start-card::-webkit-scrollbar-thumb {
   background: #bfb6a2;
   border-radius: 99px;
   border: 1.5px solid #f3efe4;
@@ -454,7 +460,9 @@ kbd {
 .pop-list::-webkit-scrollbar-thumb:hover,
 .wordle-scroll::-webkit-scrollbar-thumb:hover,
 .deck-sheet::-webkit-scrollbar-thumb:hover,
-.end-emoji::-webkit-scrollbar-thumb:hover {
+.end-emoji::-webkit-scrollbar-thumb:hover,
+.fives-rank-rows::-webkit-scrollbar-thumb:hover,
+.start-card::-webkit-scrollbar-thumb:hover {
   background: var(--ink);
 }
 
@@ -728,17 +736,223 @@ kbd {
 .swatch.green { background: var(--green); }
 .swatch.red { background: var(--red); }
 
-/* FIVES Hint Banner inside Suspect Grid Card */
+/* FIVES Planner & Action Ranking Card inside Suspect Grid */
 .fives-box-hint {
   background: #fff9e4;
-  border-bottom: 1.5px solid #e4c675;
-  padding: 10px 14px;
+  border-bottom: 1.8px solid #dfc06a;
+  padding: 10px 13px;
   display: flex;
   flex-direction: column;
+  gap: 7px;
+}
+.fives-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   gap: 8px;
 }
-.fives-hint-title { font-weight: 800; font-size: 14px; display: flex; align-items: center; gap: 6px; }
-.fives-hint-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.fives-head-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.fives-head-ico { display: inline-flex; }
+.fives-head-title {
+  font-weight: 800;
+  font-size: 13.5px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.fives-phase-pill {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 99px;
+  border: 1px solid #c99212;
+  background: #ffe8a3;
+  color: #6e4600;
+  white-space: nowrap;
+}
+.fives-phase-pill.walking {
+  background: #e3ebff;
+  border-color: #799bf0;
+  color: #1e429f;
+}
+.fives-phase-pill.observing {
+  background: #e1f6f2;
+  border-color: #61c4b6;
+  color: #115e59;
+}
+.fives-view-toggle {
+  border: 1.2px solid #c9b57c;
+  background: #fffdf6;
+  color: #5f4b18;
+  border-radius: 7px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.fives-view-toggle:hover { background: #fff0c2; border-color: var(--ink); }
+
+.fives-intuition {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #3f3622;
+  background: #fffdf6;
+  border: 1.2px solid #ead89b;
+  border-radius: 9px;
+  padding: 6px 9px;
+}
+.fives-intuition b { color: var(--ink); font-weight: 800; }
+
+.fives-outcome-note {
+  font-size: 12px;
+  line-height: 1.38;
+  font-weight: 700;
+  color: #1c4c45;
+  background: #e7f8f4;
+  border: 1.3px solid #6bc5b7;
+  border-radius: 9px;
+  padding: 6px 9px;
+}
+
+.fives-table-wrap {
+  background: #fffdf8;
+  border: 1.4px solid #e2d5ab;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.fives-tbl-head,
+.fives-rank-row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 38px 66px 64px;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+}
+.fives-tbl-head {
+  background: #f5eed9;
+  border-bottom: 1px solid #e2d5ab;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+.fives-tbl-head span:nth-child(3),
+.fives-tbl-head span:nth-child(4),
+.fives-tbl-head span:nth-child(5) {
+  text-align: right;
+}
+.fives-rank-rows {
+  max-height: 158px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.fives-rank-row {
+  border: 0;
+  border-bottom: 1px solid #f1ead8;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.fives-rank-row:last-child { border-bottom: 0; }
+.fives-rank-row:hover { background: #faf3dc; }
+.fives-rank-row.top-pick {
+  background: #fff3c4;
+  font-weight: 700;
+}
+.fives-rank-row.top-pick:hover { background: #fde99f; }
+
+.rk-num {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
+}
+.fives-rank-row.top-pick .rk-num { color: #8c5800; }
+
+.rk-act {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.rk-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+  font-weight: 700;
+}
+.rk-sib {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.rk-time {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #4f4a40;
+}
+.rk-imp {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.rk-imp.imp-low { color: #256c3b; }
+.rk-imp.imp-med { color: #9a6200; }
+.rk-imp.imp-high { color: #b82d2d; }
+
+.rk-eff {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: 11px;
+  color: var(--ink);
+}
+.rk-bar {
+  width: 26px;
+  height: 6px;
+  border-radius: 99px;
+  background: #ebe4d1;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.rk-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--teal);
+}
+.fives-rank-row.top-pick .rk-bar > i { background: #d99316; }
+
+.fives-progress-track {
+  height: 4px;
+  border-radius: 99px;
+  background: #eadcb2;
+  overflow: hidden;
+}
+.fives-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #c98612;
+  transition: width 0.08s linear;
+}
+
 .fives-hint-controls {
   display: flex;
   justify-content: space-between;
@@ -763,7 +977,9 @@ kbd {
   font-size: 12.5px;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
 }
+.hint-apply-btn:disabled { opacity: 0.45; cursor: default; }
 
 .wordle-scroll {
   flex: 1;

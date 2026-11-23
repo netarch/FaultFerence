@@ -166,19 +166,42 @@
           </div>
         </div>
 
-        <!-- FIVES Hint Card inside Suspect Grid box when toggled ON -->
+        <!-- FIVES Planner & Action Ranking Card -->
         <div id="fives-banner" class="fives-box-hint hidden">
-          <div class="fives-hint-main">
-            <div id="fives-hint-text" class="fives-hint-title">FIVES Hint</div>
-            <div id="fives-hint-why" class="fives-hint-sub"></div>
+          <div class="fives-top-bar">
+            <div class="fives-head-left">
+              <span id="fives-head-ico" class="fives-head-ico"></span>
+              <span id="fives-head-title" class="fives-head-title">FIVES Planner</span>
+              <span id="fives-phase-pill" class="fives-phase-pill hidden"></span>
+            </div>
+            <button type="button" class="fives-view-toggle" id="btn-fives-view" title="Switch between best per action type and all candidate actions">All</button>
           </div>
+
+          <div id="fives-intuition" class="fives-intuition"></div>
+          <div id="fives-outcome-note" class="fives-outcome-note hidden"></div>
+
+          <div class="fives-table-wrap" id="fives-table-wrap">
+            <div class="fives-tbl-head">
+              <span>#</span>
+              <span>Action</span>
+              <span title="Estimated execution + observation time">Time</span>
+              <span title="Estimated live traffic disruption">Impact</span>
+              <span title="Information gain per unit of time &amp; disruption">Eff.</span>
+            </div>
+            <div id="fives-rank-rows" class="fives-rank-rows"></div>
+          </div>
+
+          <div id="fives-progress-track" class="fives-progress-track hidden">
+            <div id="fives-progress-fill" class="fives-progress-fill"></div>
+          </div>
+
           <div class="fives-hint-controls">
             <label class="hint-slider" title="Prefer faster time vs gentler impact">
               <span>Fast</span>
               <input type="range" id="lambda" min="0" max="1" step="0.1" value="0.5">
               <span>Gentle</span>
             </label>
-            <button type="button" class="hint-apply-btn" id="btn-fives-step">Apply Hint</button>
+            <button type="button" class="hint-apply-btn" id="btn-fives-step">Apply #1</button>
           </div>
         </div>
 

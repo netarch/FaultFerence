@@ -54,6 +54,12 @@ const G = {
   fives: null,
   fivesHint: false,
   fivesUnlocked: false,
+  fivesShowAll: false,
+  fivesPhase: null,
+  fivesLastOutcome: "",
+  fivesSkipFn: null,
+  fivesWaitStart: 0,
+  fivesWaitDur: 0,
   deckOpen: false,
   peekFault: false,
   infBase: "flock",       // Flock active by default at start
@@ -150,6 +156,7 @@ function triggerSloViolation() {
   if (G.sloViolated || !G.state || G.state.stats.status !== "playing") return;
   G.sloViolated = true;
   G.autoPlay = false;
+  cancelFivesWait();
   setSolveBtnLabel(false);
   setArmedWeapon(null);
   closeDeck();
@@ -1035,6 +1042,116 @@ function renderEndCard() {
   }
 }
 
+function cancelFivesWait() {
+  G.fivesPhase = null;
+  G.fivesLastOutcome = "";
+  G.fivesWaitDur = 0;
+  $("fives-progress-track").classList.add("hidden");
+  $("fives-progress-fill").style.width = "0%";
+  if (G.fivesSkipFn) {
+    const fn = G.fivesSkipFn;
+    G.fivesSkipFn = null;
+    fn();
+  }
+}
+
+function fivesWait(ms) {
+  G.fivesWaitStart = performance.now();
+  G.fivesWaitDur = ms;
+  $("fives-progress-fill").style.width = "0%";
+  $("fives-progress-track").classList.remove("hidden");
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(tid);
+      G.fivesSkipFn = null;
+      G.fivesWaitDur = 0;
+      $("fives-progress-track").classList.add("hidden");
+      $("fives-progress-fill").style.width = "0%";
+      renderFivesPhaseUi();
+      resolve();
+    };
+    const tid = setTimeout(finish, ms);
+    G.fivesSkipFn = finish;
+    renderFivesPhaseUi();
+  });
+}
+
+function shortImpTag(d) {
+  if (d < 0.4) return { txt: `${d.toFixed(2)} Low`, cls: "imp-low" };
+  if (d < 3.0) return { txt: `${d.toFixed(2)} Med`, cls: "imp-med" };
+  const num = d < 10 ? d.toFixed(1) : String(Math.round(d));
+  return { txt: `${num} High`, cls: "imp-high" };
+}
+
+function buildFivesIntuition(r, st) {
+  const b = r.best;
+  const splitStr = b.partition.join(" / ");
+  const gainStr = `${b.info_gain_bits.toFixed(2)}b`;
+  const drainAlt = r.ranking.find(
+    (x) =>
+      x.rank > 1 &&
+      (x.kind === "flow_link_drain" || x.kind === "full_link_drain" || x.kind === "component_reset")
+  );
+  const diffKindAlt = r.ranking.find((x) => x.kind !== b.kind);
+
+  if (b.kind === "subtle_weight_shift" && drainAlt) {
+    const ratio = Math.max(2, Math.round(drainAlt.est_disruption / Math.max(0.01, b.est_disruption)));
+    return `<b>Why #1 (${b.title}):</b> Splits ${st.stats.eq_size} suspects into <b>${splitStr}</b> (${gainStr} info) in ~${fmtTime(b.est_time)} — same split as draining a link at <b>${ratio}× lower impact</b>.`;
+  }
+  if (st.stats.eq_size === 2 && b.partition.length >= 2) {
+    return `<b>Why #1 (${b.title}):</b> Cleanly separates the final <b>2 suspects (${splitStr})</b> in ~${fmtTime(b.est_time)} with <b>${b.est_disruption.toFixed(2)}</b> impact — pinpoints the faulty device next.`;
+  }
+  if (diffKindAlt) {
+    if (b.info_gain_bits > diffKindAlt.info_gain_bits + 0.08) {
+      return `<b>Why #1 (${b.title}):</b> Gives <b>${gainStr}</b> info (splits ${st.stats.eq_size} → <b>${splitStr}</b>) vs ${diffKindAlt.info_gain_bits.toFixed(2)}b for ${diffKindAlt.title}, winning on efficiency (<b>${b.score.toFixed(2)}</b>).`;
+    }
+    if (b.est_time + 2 < diffKindAlt.est_time) {
+      return `<b>Why #1 (${b.title}):</b> Finishes in <b>~${fmtTime(b.est_time)}</b> (splits <b>${splitStr}</b>, ${b.est_disruption.toFixed(2)} impact), beating slower ~${fmtTime(diffKindAlt.est_time)} ${diffKindAlt.title}.`;
+    }
+    return `<b>Why #1 (${b.title}):</b> Highest gain-per-cost (<b>${b.score.toFixed(2)}</b>) — splits ${st.stats.eq_size} suspects into <b>${splitStr}</b> in ~${fmtTime(b.est_time)} (${b.est_disruption.toFixed(2)} impact).`;
+  }
+  return `<b>Why #1 (${b.title}):</b> Splits ${st.stats.eq_size} suspects into <b>${splitStr}</b> (${gainStr} info) in ~${fmtTime(b.est_time)} with ${b.est_disruption.toFixed(2)} impact.`;
+}
+
+function renderFivesPhaseUi() {
+  const pill = $("fives-phase-pill");
+  const outEl = $("fives-outcome-note");
+  const stepBtn = $("btn-fives-step");
+
+  if (G.autoPlay && G.fivesPhase) {
+    pill.classList.remove("hidden", "walking", "observing");
+    if (G.fivesPhase === "ranking") {
+      pill.textContent = "1. Ranking";
+    } else if (G.fivesPhase === "walking") {
+      pill.textContent = "2. Walking";
+      pill.classList.add("walking");
+    } else if (G.fivesPhase === "observing") {
+      pill.textContent = "3. Observing";
+      pill.classList.add("observing");
+    }
+  } else {
+    pill.classList.add("hidden");
+  }
+
+  if (G.fivesLastOutcome) {
+    outEl.textContent = G.fivesLastOutcome;
+    outEl.classList.remove("hidden");
+  } else {
+    outEl.classList.add("hidden");
+  }
+
+  if (G.autoPlay) {
+    stepBtn.textContent = G.fivesSkipFn ? "Next ▸" : "Walking…";
+    stepBtn.disabled = !G.fivesSkipFn;
+  } else {
+    stepBtn.textContent = "Apply #1";
+    stepBtn.disabled = !G.fives || !G.fives.best;
+  }
+}
+
 async function refreshFivesHint() {
   if (!G.state) return;
   $("btn-fives-hint").classList.toggle("on", G.fivesHint);
@@ -1044,20 +1161,85 @@ async function refreshFivesHint() {
     return;
   }
   const lam = $("lambda").value;
-  const r = Engine.fives(G.state.id, lam, 1, 3);
+  const r = Engine.fives(G.state.id, lam, 1, 0);
   G.fives = r;
   $("fives-banner").classList.remove("hidden");
+  $("fives-head-ico").innerHTML = Sprites.icon("monocle", 16);
+  const stepNum = G.state.stats.actions + 1;
+  $("fives-head-title").textContent = `FIVES · Round #${stepNum}`;
+
+  const rowsEl = $("fives-rank-rows");
+  rowsEl.innerHTML = "";
+  const toggleBtn = $("btn-fives-view");
+
   if (!r.best) {
-    $("fives-hint-text").innerHTML = `${Sprites.icon("monocle", 17)}<span>No safe move splits the remaining suspects</span>`;
-    $("fives-hint-why").textContent = "";
-    $("btn-fives-step").disabled = true;
+    $("fives-intuition").innerHTML = "No safe perturbation separates the remaining suspects.";
+    $("fives-table-wrap").classList.add("hidden");
+    toggleBtn.classList.add("hidden");
+    renderFivesPhaseUi();
     return;
   }
-  const b = r.best;
-  $("fives-hint-text").innerHTML = `${Sprites.icon("monocle", 18)}<span>Try: ${b.title}</span>`;
-  $("fives-hint-why").textContent =
-    `Splits ${G.state.stats.eq_size} suspects into ${b.partition.join(" vs ")} · ~${fmtTime(b.est_time)} · ${IMPACT_WORDS[b.kind]} impact`;
-  $("btn-fives-step").disabled = false;
+
+  $("fives-table-wrap").classList.remove("hidden");
+  $("fives-intuition").innerHTML = buildFivesIntuition(r, G.state);
+
+  const allRows = r.ranking;
+  const kindCounts = new Map();
+  const byKind = [];
+  for (const item of allRows) {
+    const prev = kindCounts.has(item.kind) ? kindCounts.get(item.kind) : 0;
+    if (prev === 0) byKind.push(item);
+    kindCounts.set(item.kind, prev + 1);
+  }
+
+  if (allRows.length > byKind.length) {
+    toggleBtn.classList.remove("hidden");
+    toggleBtn.textContent = G.fivesShowAll ? `By Type (${byKind.length})` : `All ${allRows.length} ▾`;
+  } else {
+    toggleBtn.classList.add("hidden");
+  }
+
+  const shown = G.fivesShowAll ? allRows : byKind;
+  const maxScore = Math.max(0.001, r.best.score);
+
+  for (const item of shown) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    const isTop = item.rank === 1;
+    btn.className = "fives-rank-row" + (isTop ? " top-pick" : "");
+    const sibs = !G.fivesShowAll ? kindCounts.get(item.kind) - 1 : 0;
+    const imp = shortImpTag(item.est_disruption);
+    const pct = Math.max(6, Math.round((item.score / maxScore) * 100));
+    const shortTitle = item.title.replace(/^Shut Link /, "Shut ");
+
+    btn.title = `#${item.rank} ${item.title} — splits into ${item.partition.join("/")} (${item.info_gain_bits.toFixed(2)} bits) · ~${fmtTime(item.est_time)} · ${item.est_disruption.toFixed(2)} impact · eff ${item.score.toFixed(2)}`;
+    btn.innerHTML = `
+      <span class="rk-num">${isTop ? "★1" : "#" + item.rank}</span>
+      <span class="rk-act">
+        ${Sprites.icon(item.kind, 14)}
+        <span class="rk-title">${shortTitle}</span>
+        ${sibs > 0 ? `<span class="rk-sib">+${sibs}</span>` : ""}
+      </span>
+      <span class="rk-time">${fmtTime(item.est_time)}</span>
+      <span class="rk-imp ${imp.cls}">${imp.txt}</span>
+      <span class="rk-eff">
+        <span class="rk-bar"><i style="width:${pct}%"></i></span>
+        <span>${item.score.toFixed(2)}</span>
+      </span>
+    `;
+    btn.addEventListener("mouseenter", () => {
+      G.hovered = item.anchor;
+    });
+    btn.addEventListener("mouseleave", () => {
+      if (sameTarget(G.hovered, item.anchor)) G.hovered = null;
+    });
+    btn.addEventListener("click", () => {
+      if (!G.autoPlay) walkAndApply(item);
+    });
+    rowsEl.appendChild(btn);
+  }
+
+  renderFivesPhaseUi();
 }
 
 // ---------------------------------------------------------------------------
@@ -1065,6 +1247,7 @@ async function refreshFivesHint() {
 // ---------------------------------------------------------------------------
 async function startNewCase(seedOverride, preserveComparison = false) {
   G.autoPlay = false;
+  cancelFivesWait();
   G.fivesHint = false;
   G.fivesUnlocked = false;
   G.playedByFives = false;
@@ -1119,8 +1302,8 @@ async function startNewCase(seedOverride, preserveComparison = false) {
   G.busy = false;
 }
 
-async function applyAction(action) {
-  if (G.busy || !G.state || effectiveStatus() !== "playing") return;
+async function applyAction(action, skipHintRefresh = false) {
+  if (G.busy || !G.state || effectiveStatus() !== "playing") return null;
   G.busy = true;
   closePopover();
   const data = Engine.apply(G.state.id, action);
@@ -1133,7 +1316,7 @@ async function applyAction(action) {
   if (G.state.stats.status === "playing" && sloRemainingSec() <= 0) {
     G.busy = false;
     triggerSloViolation();
-    return;
+    return res;
   }
 
   if (res.status === "rejected") {
@@ -1165,8 +1348,11 @@ async function applyAction(action) {
 
   renderHud();
   renderWordleGrid(true);
-  await refreshFivesHint();
+  if (!skipHintRefresh) {
+    await refreshFivesHint();
+  }
   G.busy = false;
+  return res;
 }
 
 async function accuseSwitch(nodeId) {
@@ -1224,7 +1410,9 @@ function setSolveBtnLabel(running) {
 async function solveWithFives() {
   if (G.autoPlay) {
     G.autoPlay = false;
+    cancelFivesWait();
     setSolveBtnLabel(false);
+    renderFivesPhaseUi();
     return;
   }
   if (!G.state) return;
@@ -1262,22 +1450,58 @@ async function solveWithFives() {
   G.autoPlay = true;
   setSolveBtnLabel(true);
   G.fivesHint = true;
-  await refreshFivesHint();
 
   while (G.autoPlay && G.state && effectiveStatus() === "playing") {
+    // Stage 1: Rank all actions & pause to explain why #1 was chosen
+    G.fivesPhase = "ranking";
+    G.fivesLastOutcome = "";
     await refreshFivesHint();
     if (!G.fives || !G.fives.best) break;
     const pick = G.fives.best;
+
+    detectiveSay(
+      `FIVES #1: ${pick.title} — splits ${G.state.stats.eq_size} → ${pick.partition.join("/")} (eff ${pick.score.toFixed(2)})`,
+      "info",
+      3200,
+      "thinking"
+    );
+    await fivesWait(2800);
+    if (!G.autoPlay || !G.state || effectiveStatus() !== "playing") break;
+
+    // Stage 2: Detective walks over to the chosen switch / link
+    G.fivesPhase = "walking";
+    renderFivesPhaseUi();
     await new Promise((resolve) => {
-      walkDetectiveTo(pick.anchor, async () => {
-        await applyAction(pick);
+      const dest = targetStandPos(pick.anchor);
+      if (Math.hypot(G.det.x - dest.x, G.det.y - dest.y) < 26) {
         resolve();
-      });
+      } else {
+        walkDetectiveTo(pick.anchor, resolve);
+      }
     });
-    await new Promise((r) => setTimeout(r, 700));
+    if (!G.autoPlay || !G.state || effectiveStatus() !== "playing") break;
+
+    // Stage 3: Apply action & pause to view telemetry results before re-ranking
+    G.fivesPhase = "observing";
+    const res = await applyAction(pick, true);
+    if (!G.autoPlay || !G.state || effectiveStatus() !== "playing" || !res) {
+      break;
+    }
+
+    const out = analyzeOutcome(res);
+    const cleared = res.eq_before - res.eq_after;
+    G.fivesLastOutcome =
+      cleared > 0
+        ? `Result: ${out.say} → ruled out ${cleared} switch${cleared === 1 ? "" : "es"} (${res.eq_after} suspects left).`
+        : `Result: ${out.say} → updated probabilities (${res.eq_after} suspects left).`;
+    renderFivesPhaseUi();
+    await fivesWait(2100);
   }
+
   G.autoPlay = false;
+  cancelFivesWait();
   setSolveBtnLabel(false);
+  await refreshFivesHint();
 }
 
 // ---------------------------------------------------------------------------
@@ -1716,7 +1940,13 @@ function drawFx(ctx) {
 function stepWorld(dt) {
   if (!G.state) return;
 
-  if (!G.startScreenOpen && effectiveStatus() === "playing") {
+  if (G.fivesWaitDur > 0) {
+    const pct = Math.min(100, ((performance.now() - G.fivesWaitStart) / G.fivesWaitDur) * 100);
+    $("fives-progress-fill").style.width = `${pct}%`;
+  }
+
+  const pauseSloForExplain = G.fivesPhase === "ranking" || G.fivesPhase === "observing";
+  if (!G.startScreenOpen && effectiveStatus() === "playing" && !pauseSloForExplain) {
     G.wallElapsedSec += dt;
     renderSloHud();
     if (sloRemainingSec() <= 0) {
@@ -1977,8 +2207,20 @@ async function init() {
     if (G.selected) openPopover(G.selected);
   };
   $("btn-fives-hint").addEventListener("click", toggleFivesHint);
+  $("btn-fives-view").addEventListener("click", () => {
+    Sound.sfx("ui");
+    G.fivesShowAll = !G.fivesShowAll;
+    refreshFivesHint();
+  });
   $("lambda").addEventListener("input", () => refreshFivesHint());
   $("btn-fives-step").addEventListener("click", () => {
+    if (G.autoPlay) {
+      if (G.fivesSkipFn) {
+        Sound.sfx("ui");
+        G.fivesSkipFn();
+      }
+      return;
+    }
     if (G.fives && G.fives.best) walkAndApply(G.fives.best);
   });
   $("btn-fives-solve").addEventListener("click", solveWithFives);
