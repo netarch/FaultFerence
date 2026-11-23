@@ -111,6 +111,7 @@
     noiseBuf: null,
     muted: false,
     musicStarted: false,
+    musicPausedForEnd: false,
     stepIdx: 0,
     nextNoteTime: 0,
     timerId: null,
@@ -326,7 +327,7 @@
   }
 
   function schedulerTick() {
-    if (!state.ctx || state.muted || state.ctx.state !== "running") return;
+    if (!state.ctx || state.muted || state.musicPausedForEnd || state.ctx.state !== "running") return;
     const lookahead = 0.28;
     while (state.nextNoteTime < state.ctx.currentTime + lookahead) {
       const s = state.stepIdx % 64;
@@ -359,6 +360,11 @@
   function startMusic() {
     const ctx = ensureContext();
     if (!ctx) return;
+    state.musicPausedForEnd = false;
+    if (state.musicGain) {
+      state.musicGain.gain.cancelScheduledValues(ctx.currentTime);
+      state.musicGain.gain.setValueAtTime(0.28, ctx.currentTime);
+    }
     if (!state.musicStarted) {
       state.musicStarted = true;
       state.stepIdx = 0;
@@ -366,6 +372,21 @@
       state.timerId = setInterval(schedulerTick, 90);
     } else if (state.nextNoteTime < ctx.currentTime) {
       state.nextNoteTime = ctx.currentTime + 0.05;
+    }
+  }
+
+  function stopMusic() {
+    state.musicPausedForEnd = true;
+    if (state.timerId !== null) {
+      clearInterval(state.timerId);
+      state.timerId = null;
+    }
+    state.musicStarted = false;
+    if (state.ctx && state.musicGain) {
+      const now = state.ctx.currentTime;
+      state.musicGain.gain.cancelScheduledValues(now);
+      state.musicGain.gain.setValueAtTime(state.musicGain.gain.value, now);
+      state.musicGain.gain.linearRampToValueAtTime(0.0001, now + 0.06);
     }
   }
 
@@ -410,7 +431,11 @@
     if (state.muted) return;
     const ctx = ensureContext();
     if (!ctx) return;
-    startMusic();
+    if (kind === "win" || kind === "wrong" || kind === "fired") {
+      stopMusic();
+    } else if (!state.musicPausedForEnd) {
+      startMusic();
+    }
     const now = ctx.currentTime;
 
     if (kind === "ui") {
@@ -519,19 +544,34 @@
     }
 
     if (kind === "win") {
-      // Triumphant Victorian cadence (C4 - G4 - C5 - E5 - G5)
-      const fanfare = [60, 67, 72, 76, 79];
-      fanfare.forEach((m, i) => {
-        playTone(ctx, mtof(m), mtof(m), now + i * 0.08, 0.36, "triangle", 0.24);
+      // Case Solved! Bright ascending Sherlock flourish + warm resolved C-major chord & chime
+      const arpeggio = [67, 72, 76, 79];
+      arpeggio.forEach((m, i) => {
+        playTone(ctx, mtof(m), mtof(m), now + i * 0.085, 0.22, "triangle", 0.24);
       });
+      const chordT = now + 0.34;
+      for (const m of [60, 64, 67, 72, 76]) {
+        playTone(ctx, mtof(m), mtof(m), chordT, 0.95, "triangle", 0.16);
+      }
+      playTone(ctx, mtof(84), mtof(84), chordT, 0.75, "sine", 0.18);
+      return;
+    }
+
+    if (kind === "wrong") {
+      // Wrong Suspect! Classic chromatic descending detective blunder ("wah - wah - waaah")
+      playTone(ctx, mtof(67), mtof(66.5), now, 0.18, "sawtooth", 0.22);
+      playTone(ctx, mtof(66), mtof(65.5), now + 0.20, 0.18, "sawtooth", 0.22);
+      playTone(ctx, mtof(65), mtof(58), now + 0.40, 0.62, "sawtooth", 0.26);
+      playTone(ctx, mtof(48), mtof(42), now + 0.40, 0.62, "triangle", 0.24);
       return;
     }
 
     if (kind === "fired") {
-      // Dramatic Sherlockian diminished sting ("dun-dun-duuun!")
-      playTone(ctx, mtof(63), mtof(63), now, 0.16, "sawtooth", 0.24);
-      playTone(ctx, mtof(62), mtof(62), now + 0.18, 0.16, "sawtooth", 0.24);
-      playTone(ctx, mtof(54), mtof(36), now + 0.36, 0.68, "sawtooth", 0.30);
+      // SLO Violated! Urgent pager double-alarm + dramatic low minor drop
+      playTone(ctx, 880, 622.25, now, 0.12, "square", 0.16);
+      playTone(ctx, 880, 622.25, now + 0.15, 0.12, "square", 0.16);
+      playTone(ctx, mtof(54), mtof(36), now + 0.32, 0.72, "sawtooth", 0.30);
+      playTone(ctx, mtof(48), mtof(36), now + 0.32, 0.72, "triangle", 0.26);
     }
   }
 
@@ -541,7 +581,7 @@
     if (ctx && state.masterGain) {
       state.masterGain.gain.setValueAtTime(state.muted ? 0.0 : 0.90, ctx.currentTime);
     }
-    if (!state.muted) {
+    if (!state.muted && !state.musicPausedForEnd) {
       startMusic();
       sfx("ui");
     }
@@ -550,6 +590,7 @@
 
   window.GameAudio = {
     startMusic,
+    stopMusic,
     sfx,
     toggleMute,
     isMuted: () => state.muted,

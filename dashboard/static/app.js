@@ -949,41 +949,6 @@ function renderWordleGrid(animateLastRow) {
   renderEndCard();
 }
 
-function buildShareText() {
-  const st = G.state;
-  const s = st.stats;
-  const status = effectiveStatus();
-  const sNodes = suspectNodes();
-  const statusLabel =
-    status === "localized"
-      ? "Solved"
-      : status === "slo_violated"
-      ? "SLO violated. You are fired!"
-      : "Unsolved";
-  const lines = [
-    `Inspector Switch · ${st.topology}`,
-    `${statusLabel} (${s.actions} actions · ${fmtImpactHud(s.disruption)} impact)`,
-  ];
-  const lastIdx = st.history.length - 1;
-  st.history.forEach((h, rIdx) => {
-    if (h.status === "gadget") return;
-    if (h.status === "rejected") {
-      lines.push("🟥".repeat(sNodes.length));
-      return;
-    }
-    const eq = new Set(h.eq_nodes);
-    const solved = rIdx === lastIdx && status === "localized";
-    const rowStr = sNodes
-      .map((n) => {
-        if (solved && eq.has(n.id) && n.id === st.failure.culprit) return "🟩";
-        return eq.has(n.id) ? "🟨" : "⬜";
-      })
-      .join("");
-    lines.push(rowStr);
-  });
-  return lines.join("\n");
-}
-
 function renderEndCard() {
   const st = G.state;
   const s = st.stats;
@@ -1012,7 +977,6 @@ function renderEndCard() {
     $("end-compare").textContent =
       `${s.actions} actions · ${fmtImpactHud(s.disruption)} impact`;
   }
-  $("end-emoji").textContent = buildShareText();
 }
 
 async function refreshFivesHint() {
@@ -1053,6 +1017,7 @@ async function startNewCase(seedOverride) {
   closePopover();
   $("cfg-menu").classList.add("hidden");
   $("slo-fired-overlay").classList.add("hidden");
+  if (!G.startScreenOpen) Sound.startMusic();
   G.busy = true;
   const payload = {
     topology: $("topology").value,
@@ -1120,11 +1085,13 @@ async function applyAction(action) {
     const out = analyzeOutcome(res);
     Sound.sfx(res.action.kind, out.clean);
     if (G.state.stats.status === "localized") {
-      setTimeout(() => Sound.sfx("win"), 220);
+      Sound.stopMusic();
+      setTimeout(() => Sound.sfx("win"), 180);
       detectiveSay(`Solved! Faulty switch is ${G.state.failure.culprit_name}!`, "win", 7000, "happy");
       triggerConfetti();
     } else if (G.state.stats.status !== "playing") {
-      setTimeout(() => Sound.sfx("fired"), 220);
+      Sound.stopMusic();
+      setTimeout(() => Sound.sfx("wrong"), 180);
       detectiveSay(`Lost track of ${G.state.failure.culprit_name}!`, "bad", 5500, "shocked");
     } else if (cleared > 0) {
       setTimeout(() => Sound.sfx("cleared"), 200);
@@ -1148,6 +1115,7 @@ async function accuseSwitch(nodeId) {
   G.busy = true;
   closePopover();
   Sound.sfx("accuse");
+  Sound.stopMusic();
   const data = Engine.accuse(G.state.id, nodeId);
   G.state = data.state;
   G.actions = data.actions;
@@ -1156,7 +1124,7 @@ async function accuseSwitch(nodeId) {
     detectiveSay(`Solved! ${G.state.failure.culprit_name} was the culprit!`, "win", 7000, "happy");
     triggerConfetti();
   } else {
-    setTimeout(() => Sound.sfx("fired"), 160);
+    setTimeout(() => Sound.sfx("wrong"), 160);
     const nm = nodeById(nodeId).name;
     detectiveSay(`Wrong! ${nm} was healthy — fault: ${G.state.failure.culprit_name}.`, "bad", 6500, "shocked");
     G.shake = 10;
@@ -1896,7 +1864,6 @@ function mountStaticIcons() {
   $("btn-peek").innerHTML = `${Sprites.icon("bug", 15)}<span>Peek</span>`;
   $("btn-new").innerHTML = `${Sprites.icon("dice", 15)}<span>New Case</span>`;
   $("btn-cfg-toggle").innerHTML = Sprites.icon("chevron", 14);
-  $("btn-share").innerHTML = `${Sprites.icon("copy", 14)}<span>Copy</span>`;
   $("btn-again").innerHTML = `${Sprites.icon("dice", 14)}<span>Next Case</span>`;
   $("btn-actions").innerHTML = `${Sprites.icon("cards", 19)}<span>Actions</span><kbd>Space</kbd>`;
   $("btn-fives-hint").innerHTML = `${Sprites.icon("monocle", 16)}<span>FIVES Hint</span><kbd>F</kbd>`;
@@ -1993,11 +1960,6 @@ async function init() {
     if (ev.target === $("deck-overlay")) closeDeck();
   });
   $("armed-cancel").addEventListener("click", () => setArmedWeapon(null));
-
-  $("btn-share").addEventListener("click", async () => {
-    await navigator.clipboard.writeText(buildShareText());
-    toast("Copied grid!");
-  });
 
   $("btn-sound").addEventListener("click", () => {
     Sound.toggleMute();
