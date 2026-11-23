@@ -1983,10 +1983,15 @@ async function init() {
   });
   $("armed-cancel").addEventListener("click", () => setArmedWeapon(null));
 
-  $("btn-sound").addEventListener("click", () => {
-    Sound.toggleMute();
+  const handleToggleSound = () => {
+    const muted = Sound.toggleMute();
+    if (!muted && !G.startScreenOpen && effectiveStatus() === "playing") {
+      Sound.startMusic();
+    }
     updateSoundBtn();
-  });
+  };
+
+  $("btn-sound").addEventListener("click", handleToggleSound);
 
   $("btn-peek").addEventListener("click", () => {
     Sound.sfx("ui");
@@ -2026,7 +2031,7 @@ async function init() {
   });
   G.canvas.addEventListener("mouseleave", () => { G.hovered = null; });
   G.canvas.addEventListener("click", (ev) => {
-    Sound.startMusic();
+    Sound.unlockContext();
     const r = G.canvas.getBoundingClientRect();
     const mx = ev.clientX - r.left;
     const my = ev.clientY - r.top;
@@ -2077,8 +2082,7 @@ async function init() {
     }
     if (ev.code === "KeyM") {
       ev.preventDefault();
-      Sound.toggleMute();
-      updateSoundBtn();
+      handleToggleSound();
       return;
     }
     if (ev.code === "KeyF") {
