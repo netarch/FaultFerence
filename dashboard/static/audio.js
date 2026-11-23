@@ -277,7 +277,7 @@
     bowBp.Q.value = 2.5;
     const bowGain = ctx.createGain();
     bowGain.gain.setValueAtTime(0.032, t);
-    bowGain.exponentialRampToValueAtTime(0.0005, t + 0.045);
+    bowGain.gain.exponentialRampToValueAtTime(0.0005, t + 0.045);
     bowNoise.connect(bowBp);
     bowBp.connect(bowGain);
     bowGain.connect(state.violinBodyIn);
@@ -357,6 +357,9 @@
 
   function schedulerTick() {
     if (!state.ctx || state.muted || !state.musicActive || state.ctx.state !== "running") return;
+    if (state.nextNoteTime < state.ctx.currentTime) {
+      state.nextNoteTime = state.ctx.currentTime + 0.03;
+    }
     const lookahead = 0.28;
     while (state.nextNoteTime < state.ctx.currentTime + lookahead) {
       const s = state.stepIdx % TOTAL_STEPS;
@@ -395,6 +398,13 @@
       state.nextNoteTime = ctx.currentTime + 0.06;
       if (state.timerId !== null) clearInterval(state.timerId);
       state.timerId = setInterval(schedulerTick, 90);
+      if (ctx.state === "running") {
+        schedulerTick();
+      } else {
+        ctx.resume().then(() => {
+          if (state.musicActive) schedulerTick();
+        });
+      }
     } else if (state.nextNoteTime < ctx.currentTime) {
       state.nextNoteTime = ctx.currentTime + 0.06;
     }
