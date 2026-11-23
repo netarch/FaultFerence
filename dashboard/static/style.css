@@ -30,6 +30,17 @@ html, body {
 button, select, input { font: inherit; color: inherit; }
 .hidden { display: none !important; }
 .sp-icon { display: inline-block; flex-shrink: 0; }
+#yt-bgm-wrap {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: 200px;
+  height: 113px;
+  opacity: 0.001;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+}
 
 kbd {
   display: inline-block;
