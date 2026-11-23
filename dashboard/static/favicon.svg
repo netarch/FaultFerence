@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+  <!-- Drop shadow under Wordle tile -->
+  <rect x="3.5" y="10.5" width="20" height="19.5" rx="5" fill="#23201b" opacity="0.18"/>
+
+  <!-- 2x2 Amber / Green Wordle Deduction Tile -->
+  <path d="M8 9 H13.5 V19 H3 V14 A5 5 0 0 1 8 9 Z" fill="#e2a432"/>
+  <path d="M13.5 9 H18 A5 5 0 0 1 23 14 V19 H13.5 V9 Z" fill="#fcfaf5"/>
+  <path d="M3 19 H13.5 V29 H8 A5 5 0 0 1 3 24 V19 Z" fill="#c8ccd2"/>
+  <path d="M13.5 19 H23 V24 A5 5 0 0 1 18 29 H13.5 V19 Z" fill="#538d4e"/>
+  <path d="M13.5 9 V29 M3 19 H23" stroke="#23201b" stroke-width="1.7"/>
+  <rect x="3" y="9" width="20" height="20" rx="5" stroke="#23201b" stroke-width="2"/>
+
+  <!-- Chibi Detective Espresso Fedora Hat (jaunty tilt) -->
+  <g transform="rotate(-6 13 8)">
+    <!-- Crown -->
+    <path d="M6.8 9.6 C7 5.2 8.7 2.4 13 2.7 C14.3 2.8 14.8 3.3 15.8 2.8 C18.5 2.4 19.6 5.2 19.8 9.6 Z" fill="#433224" stroke="#23201b" stroke-width="1.9" stroke-linejoin="round"/>
+    <!-- Crown highlight -->
+    <path d="M9.2 5.2 C10.4 4.2 12 4.1 13.4 4.3" stroke="#6d533d" stroke-width="1.3" stroke-linecap="round"/>
+    <!-- Gold ribbon band -->
+    <path d="M7 7.3 H19.6 V9.6 H7 Z" fill="#e8b339" stroke="#23201b" stroke-width="1.5" stroke-linejoin="round"/>
+    <!-- Brim -->
+    <ellipse cx="13.3" cy="10" rx="10.6" ry="2.6" fill="#433224" stroke="#23201b" stroke-width="1.9"/>
+  </g>
+
+  <!-- Brass Magnifying Glass -->
+  <g>
+    <!-- Walnut handle -->
+    <line x1="24.2" y1="24.2" x2="29.4" y2="29.4" stroke="#23201b" stroke-width="4.8" stroke-linecap="round"/>
+    <line x1="24.2" y1="24.2" x2="29.4" y2="29.4" stroke="#5c4028" stroke-width="2.4" stroke-linecap="round"/>
+    <!-- Brass outer rim -->
+    <circle cx="20.2" cy="20.2" r="6" fill="#e8b339" stroke="#23201b" stroke-width="1.9"/>
+    <!-- Gleaming lens -->
+    <circle cx="20.2" cy="20.2" r="3.9" fill="#bfe8ff" stroke="#23201b" stroke-width="1.3"/>
+    <!-- Specular glint -->
+    <path d="M18.1 18.7 A2.5 2.5 0 0 1 21.1 17.7" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"/>
+  </g>
+</svg>

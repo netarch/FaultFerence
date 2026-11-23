@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Inspector Switch</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Start Game Screen -->
+  <div id="start-screen" class="start-screen">
+    <div class="start-card">
+      <canvas id="start-hero" class="start-hero" width="420" height="96"></canvas>
+
+      <h1 class="start-title">Inspector Switch</h1>
+      <p class="start-lead">
+        Traffic to <strong>host-b</strong> is dropping.<br>
+        <span class="start-question">Can you find the fault before the SLO violation?</span>
+      </p>
+
+      <div class="start-steps">
+        <div class="start-step">
+          <span class="step-ico" id="st-ico-1"></span>
+          <div><strong>Inspect &amp; test</strong> — click any switch or link (or open <strong>Actions</strong>) to Ping, Tap, or Detour traffic.</div>
+        </div>
+        <div class="start-step">
+          <span class="step-ico" id="st-ico-3"></span>
+          <div><strong>Use FIVES anytime</strong> — get a <strong>FIVES Hint</strong> or watch <strong>Solve with FIVES</strong> crack the case.</div>
+        </div>
+      </div>
+
+      <div class="start-pickers">
+        <label class="start-field">
+          <span>Network</span>
+          <select id="start-topology"></select>
+        </label>
+        <label class="start-field">
+          <span>Fault</span>
+          <select id="start-failure-mode"></select>
+        </label>
+      </div>
+
+      <div class="start-btns">
+        <button type="button" class="start-btn primary" id="btn-start-play">Start Game</button>
+      </div>
+    </div>
+  </div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="badge-hat" id="brand-icon" aria-hidden="true"></div>
+      <div class="brand-title">Inspector Switch</div>
+    </div>
+
+    <div class="toolbar">
+      <button type="button" class="pill-btn" id="btn-peek" title="Show or hide the faulty switch">Peek</button>
+
+      <div class="split-btn-wrap" id="config-wrap">
+        <button type="button" class="split-main" id="btn-new" title="Start a new case [N]">New Case</button>
+        <button type="button" class="split-arrow" id="btn-cfg-toggle" aria-label="Configure new case" title="Configure network &amp; fault">▾</button>
+
+        <div class="cfg-menu hidden" id="cfg-menu">
+          <div class="cfg-title">New Case Options</div>
+          <label class="cfg-row">
+            <span>Network</span>
+            <select id="topology"></select>
+          </label>
+          <label class="cfg-row">
+            <span>Fault</span>
+            <select id="failure_mode"></select>
+          </label>
+          <label class="cfg-check">
+            <input type="checkbox" id="chk-traceroute">
+            <span>Path-aware pings</span>
+          </label>
+          <div class="cfg-actions">
+            <button type="button" class="pill-btn primary" id="btn-cfg-apply">Start</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="hud">
+    <div class="hud-card">
+      <div class="hud-k">ACTIONS</div>
+      <div class="hud-val-row">
+        <span class="hud-v" id="h-moves">0</span>
+        <span class="hud-rej hidden" id="h-rej"></span>
+      </div>
+    </div>
+    <div class="hud-card" id="hud-slo-card">
+      <div class="hud-k">SLO TIMER</div>
+      <div class="hud-v" id="h-time">2:30</div>
+    </div>
+    <div class="hud-card">
+      <div class="hud-k">IMPACT</div>
+      <div class="hud-v" id="h-impact">None</div>
+    </div>
+    <div class="hud-card">
+      <div class="hud-k">SUSPECTS</div>
+      <div class="hud-v"><span id="h-eq">–</span><span class="hud-muted" id="h-pool"> / –</span></div>
+    </div>
+  </section>
+
+  <main class="stage">
+    <!-- Left: 2D Network Room -->
+    <section class="room-card" id="room-wrap">
+      <canvas id="world"></canvas>
+
+      <!-- Armed Action Card Banner -->
+      <div id="armed-banner" class="top-pill armed-pill hidden">
+        <span id="armed-text">Click a highlighted target</span>
+        <button type="button" id="armed-cancel" class="mini-close">Cancel <kbd>Esc</kbd></button>
+      </div>
+
+      <!-- Roomy Switch / Link Action Card -->
+      <div id="action-popover" class="popover hidden">
+        <div class="pop-head">
+          <div class="pop-title-group">
+            <span id="pop-title">Switch</span>
+            <span id="pop-status-pill" class="status-pill"></span>
+          </div>
+          <button type="button" class="pop-close" id="pop-close" aria-label="Close">✕</button>
+        </div>
+        <div id="pop-meta" class="pop-meta"></div>
+        <div id="pop-list" class="pop-list"></div>
+      </div>
+
+      <!-- Action Pack Card Deck Modal -->
+      <div id="deck-overlay" class="deck-overlay hidden">
+        <div class="deck-sheet" id="deck-sheet">
+          <div class="deck-head">
+            <span class="deck-title">Action Pack</span>
+            <button type="button" class="pop-close" id="deck-close" aria-label="Close cards">✕</button>
+          </div>
+
+          <div class="deck-section-lbl">INFERENCE MODE <span class="deck-sub">how clues narrow down suspects</span></div>
+          <div class="card-grid lens-grid" id="lens-cards"></div>
+
+          <div class="deck-section-lbl">MICRO-ACTIONS <span class="deck-sub">pick a card, then click a switch or link</span></div>
+          <div class="card-grid action-grid" id="action-cards"></div>
+        </div>
+      </div>
+
+      <!-- SLO Violated / Fired Modal -->
+      <div id="slo-fired-overlay" class="fired-overlay hidden">
+        <div class="fired-card">
+          <div class="fired-badge" id="fired-icon"></div>
+          <div class="fired-title">SLO violated. You are fired!</div>
+          <div class="fired-sub" id="fired-sub"></div>
+          <button type="button" class="start-btn primary" id="btn-fired-retry">Try Another Case</button>
+        </div>
+      </div>
+
+      <!-- Single Clean Actions Button on the Room -->
+      <div class="room-dock">
+        <button type="button" class="dock-btn main-act-btn" id="btn-actions">Actions <kbd>Space</kbd></button>
+      </div>
+    </section>
+
+    <!-- Right: Suspect Grid + FIVES Hint / Solve Controls -->
+    <aside class="side-col">
+      <section class="board-card">
+        <div class="card-bar">
+          <div class="card-title">SUSPECT GRID</div>
+          <div class="tile-legend">
+            <span><i class="swatch amber"></i>suspect</span>
+            <span><i class="swatch grey"></i>out</span>
+            <span><i class="swatch green"></i>fault</span>
+          </div>
+        </div>
+
+        <!-- FIVES Hint Card inside Suspect Grid box when toggled ON -->
+        <div id="fives-banner" class="fives-box-hint hidden">
+          <div class="fives-hint-main">
+            <div id="fives-hint-text" class="fives-hint-title">FIVES Hint</div>
+            <div id="fives-hint-why" class="fives-hint-sub"></div>
+          </div>
+          <div class="fives-hint-controls">
+            <label class="hint-slider" title="Prefer faster time vs gentler impact">
+              <span>Fast</span>
+              <input type="range" id="lambda" min="0" max="1" step="0.1" value="0.5">
+              <span>Gentle</span>
+            </label>
+            <button type="button" class="hint-apply-btn" id="btn-fives-step">Apply Hint</button>
+          </div>
+        </div>
+
+        <div class="wordle-scroll" id="wordle-scroll">
+          <div id="wordle-header" class="wordle-header"></div>
+          <div id="wordle-rows" class="wordle-rows"></div>
+        </div>
+
+        <div id="end-card" class="end-card hidden">
+          <div class="end-headline" id="end-headline">Mystery Solved!</div>
+          <div class="end-compare" id="end-compare"></div>
+          <pre class="end-emoji" id="end-emoji"></pre>
+          <div class="end-btns">
+            <button type="button" class="pill-btn" id="btn-share">Copy</button>
+            <button type="button" class="pill-btn primary" id="btn-again">Next Case</button>
+          </div>
+        </div>
+
+        <!-- FIVES Hint & Solve Footer inside Suspect Grid Card -->
+        <div class="grid-footer">
+          <button type="button" class="fives-foot-btn hint-btn" id="btn-fives-hint">FIVES Hint <kbd>F</kbd></button>
+          <button type="button" class="fives-foot-btn solve-btn" id="btn-fives-solve">Solve with FIVES</button>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <div id="toast" class="toast"></div>
+  <script src="sprites.js"></script>
+  <script src="topologies.js"></script>
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
