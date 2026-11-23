@@ -826,6 +826,17 @@
             pathWeights: pwMir,
             tracedPath: [],
           });
+        } else {
+          records.push({
+            pair: pert.flowPair,
+            isProbe: false,
+            isMirror: true,
+            mirrorNode: pert.node,
+            packetsSent: 0,
+            packetsBad: 0,
+            pathWeights: [],
+            tracedPath: [],
+          });
         }
       }
 
@@ -867,9 +878,6 @@
       for (const n of [p.srcNode, p.dstNode]) {
         if (cfg.probeBanned.has(n)) return `No probe support on ${net.nodeName(n)}`;
         if (cfg.externalBlackbox.has(n)) return `External peer (${net.nodeName(n)})`;
-      }
-      if (!net.checkNoBranch(p.flowPair, p.srcNode, p.dstNode)) {
-        return "Ping paths branch off flow";
       }
       return null;
     }
@@ -1371,6 +1379,7 @@
     }
 
     _recordLogLikelihood(rec, node, pDrop, suppressed) {
+      if (rec.packetsSent <= 0) return 0.0;
       if (suppressed) {
         return binomLogPmf(rec.packetsBad, rec.packetsSent, this.bgNoiseProb);
       }
@@ -1560,18 +1569,29 @@
 
       if (pert.kind === "active_probe") {
         const pr = window.records.find((r) => r.isProbe);
-        const subNodes = new Set();
+        const anyNodes = new Set();
+        let allNodes = null;
         if (this.pathAware) {
-          for (const n of pr.tracedPath) subNodes.add(n);
+          for (const n of pr.tracedPath) anyNodes.add(n);
+          allNodes = new Set(anyNodes);
         } else {
           for (const item of pr.pathWeights) {
-            for (const n of item.path) subNodes.add(n);
+            const pSet = new Set(item.path);
+            for (const n of pSet) anyNodes.add(n);
+            if (allNodes === null) {
+              allNodes = pSet;
+            } else {
+              for (const prev of Array.from(allNodes)) {
+                if (!pSet.has(prev)) allNodes.delete(prev);
+              }
+            }
           }
+          if (allNodes === null) allNodes = new Set();
         }
         const failed = this._isAnomalous(pr);
         const nxt = new Set();
         for (const s of this.suspects) {
-          if (failed ? subNodes.has(s) : !subNodes.has(s)) nxt.add(s);
+          if (failed ? anyNodes.has(s) : !allNodes.has(s)) nxt.add(s);
         }
         if (nxt.size > 0) this.suspects = nxt;
         return;
@@ -1901,18 +1921,13 @@
     const topSw = candSw.filter((_, i) => i % 2 === 0);
     const botSw = candSw.filter((_, i) => i % 2 === 1);
 
+    const offPathSwitches = [];
     topSw.forEach((sw, idx) => {
       const bx = 0.16 + 0.68 * ((idx + 0.5) / Math.max(1, topSw.length));
       const by = 0.065;
       const k = `sw:${sw}`;
-      bgNodes.push({
-        key: k,
-        name: net.nodeName(sw),
-        kind: "switch",
-        active: false,
-        x: Math.round(bx * 10000) / 10000,
-        y: by,
-      });
+      const rx = Math.round(bx * 10000) / 10000;
+      offPathSwitches.push({ id: sw, x: rx, y: by });
       coordByKey.set(k, [bx, by]);
     });
 
@@ -1920,14 +1935,8 @@
       const bx = 0.24 + 0.64 * ((idx + 0.5) / Math.max(1, botSw.length));
       const by = 0.925;
       const k = `sw:${sw}`;
-      bgNodes.push({
-        key: k,
-        name: net.nodeName(sw),
-        kind: "switch",
-        active: false,
-        x: Math.round(bx * 10000) / 10000,
-        y: by,
-      });
+      const rx = Math.round(bx * 10000) / 10000;
+      offPathSwitches.push({ id: sw, x: rx, y: by });
       coordByKey.set(k, [bx, by]);
     });
 
@@ -1986,7 +1995,7 @@
       };
     });
 
-    return { bgNodes, bgEdges: resolvedEdges };
+    return { bgNodes, bgEdges: resolvedEdges, offPathSwitches };
   }
 
   // ---------------------------------------------------------------------------
@@ -2169,8 +2178,13 @@
       const bg = buildBackgroundContext(this.net, rawRoom, this.pos, pairs);
       this.bgNodes = bg.bgNodes;
       this.bgEdges = bg.bgEdges;
+      this.offPathSet = new Set();
+      for (const ops of bg.offPathSwitches) {
+        this.pos.set(ops.id, [ops.x, ops.y]);
+        this.offPathSet.add(ops.id);
+      }
 
-      this.nodes = rawRoom.slice().sort((a, b) => {
+      const activeSorted = rawRoom.slice().sort((a, b) => {
         const [ax, ay] = this.pos.get(a);
         const [bx, by] = this.pos.get(b);
         return (
@@ -2179,13 +2193,14 @@
           a - b
         );
       });
+      this.nodes = activeSorted.concat(bg.offPathSwitches.map((s) => s.id));
 
       const endpoints = new Set();
       for (const pair of pairs) {
         endpoints.add(pair[0]);
         endpoints.add(pair[1]);
       }
-      this.pool = this.nodes.filter((n) => !endpoints.has(n));
+      this.pool = activeSorted.filter((n) => !endpoints.has(n));
 
       let maxPaths = 1;
       for (const pair of pairs) {
@@ -2400,6 +2415,7 @@
           name: net.nodeName(n),
           role,
           is_endpoint: endpoints.has(n),
+          is_off_path: this.offPathSet.has(n),
           in_pool: poolSet.has(n),
           x,
           y,

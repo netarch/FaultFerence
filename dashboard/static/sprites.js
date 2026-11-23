@@ -1482,17 +1482,28 @@
     ctx.restore();
   }
 
-  function drawBgSwitchProp(ctx, x, y, name) {
+  function drawBgSwitchProp(ctx, x, y, name, opts) {
+    const selected = Boolean(opts && opts.selected);
+    const hovered = Boolean(opts && opts.hovered);
+    const wrongAccused = Boolean(opts && opts.wrongAccused);
     ctx.save();
     ctx.translate(x, y);
-    ctx.globalAlpha = 0.38;
-    ctx.fillStyle = "#dad5c8";
-    ctx.strokeStyle = "#857e70";
+    if (selected || hovered) {
+      ctx.strokeStyle = selected ? INK : GOLD;
+      ctx.lineWidth = 2.0;
+      ctx.setLineDash(selected ? [] : [4, 3]);
+      rrect(ctx, -19, -18, 38, 36, 9);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    ctx.globalAlpha = wrongAccused || selected || hovered ? 0.92 : 0.48;
+    ctx.fillStyle = wrongAccused ? RED : "#dad5c8";
+    ctx.strokeStyle = wrongAccused ? INK : (selected || hovered ? INK : "#857e70");
     ctx.lineWidth = 1.6;
     rrect(ctx, -15, -14, 30, 28, 6);
     ctx.fill();
     ctx.stroke();
-    ctx.strokeStyle = "#968f80";
+    ctx.strokeStyle = wrongAccused ? "#7a1c1c" : "#968f80";
     ctx.lineWidth = 1.2;
     ctx.beginPath();
     ctx.moveTo(-9, -2);
@@ -1500,8 +1511,8 @@
     ctx.moveTo(-9, 4);
     ctx.lineTo(9, 4);
     ctx.stroke();
-    ctx.font = "600 9.5px Inter, sans-serif";
-    ctx.fillStyle = "#6c6558";
+    ctx.font = selected || hovered ? "700 10px Inter, sans-serif" : "600 9.5px Inter, sans-serif";
+    ctx.fillStyle = selected || hovered || wrongAccused ? INK : "#6c6558";
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     const lbl = name.length > 9 ? name.slice(0, 8) + "…" : name;

@@ -220,6 +220,9 @@ function analyzeOutcome(res) {
   }
   const mir = res.telemetry.find((r) => r.kind === "mirror");
   if (mir) {
+    if (mir.sent === 0) {
+      return { badge: "0 Flow Pkts", clean: true, say: "Affected flow doesn't pass through this switch" };
+    }
     return mir.bad === 0
       ? { badge: "✓ Clean Here!", clean: true, say: "Packets look healthy at this switch" }
       : { badge: "✕ Bad Already!", clean: false, say: "Packets are already failing here" };
@@ -252,7 +255,8 @@ function normToPx(nx, ny) {
 }
 
 function rackDims() {
-  const compact = G.state && G.state.nodes.length > 18;
+  const mainCount = G.state ? G.state.nodes.filter((n) => !n.is_off_path).length : 0;
+  const compact = mainCount > 18;
   return { rw: compact ? 30 : 40, rh: compact ? 34 : 44, compact };
 }
 
@@ -310,7 +314,9 @@ function hitTestRoom(mx, my) {
   const { rw, rh } = rackDims();
   for (const n of G.state.nodes) {
     const p = nodePos(n);
-    if (Math.abs(mx - p.x) <= rw / 2 + 2 && Math.abs(my - p.y) <= rh / 2 + 2) {
+    const hw = n.is_off_path ? 18 : rw / 2 + 2;
+    const hh = n.is_off_path ? 18 : rh / 2 + 2;
+    if (Math.abs(mx - p.x) <= hw && Math.abs(my - p.y) <= hh) {
       return { type: "node", id: n.id };
     }
   }
@@ -1443,12 +1449,23 @@ function drawNodes(ctx, now) {
     const armedSafe = armedMatches.some((a) => a.violation === null);
 
     if (isArmedTarget) {
+      const aw = n.is_off_path ? 30 : rw;
+      const ah = n.is_off_path ? 28 : rh;
       ctx.strokeStyle = armedSafe ? "#1e9e8e" : "#d94848";
       ctx.lineWidth = 2.4;
       if (!armedSafe) ctx.setLineDash([4, 3]);
-      roundRect(ctx, p.x - rw / 2 - 6 - pulse * 0.5, p.y - rh / 2 - 6 - pulse * 0.5, rw + 12 + pulse, rh + 12 + pulse, 12);
+      roundRect(ctx, p.x - aw / 2 - 6 - pulse * 0.5, p.y - ah / 2 - 6 - pulse * 0.5, aw + 12 + pulse, ah + 12 + pulse, 12);
       ctx.stroke();
       ctx.setLineDash([]);
+    }
+
+    if (n.is_off_path) {
+      Sprites.drawBgSwitchProp(ctx, p.x, p.y, n.name, {
+        selected: isSel,
+        hovered: isHov,
+        wrongAccused: wrongNodeId === n.id,
+      });
+      continue;
     }
 
     Sprites.drawRackProp(
