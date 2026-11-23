@@ -1904,24 +1904,12 @@ function mountStaticIcons() {
   setSolveBtnLabel(false);
 }
 
-function pickRandomScenario() {
-  const topos = G.cfg.topologies;
-  const modes = G.cfg.failure_modes;
-  $("topology").value = topos[Math.floor(Math.random() * topos.length)];
-  $("failure_mode").value = modes[Math.floor(Math.random() * modes.length)];
-}
-
-function startRandomCase() {
-  pickRandomScenario();
-  return startNewCase();
-}
-
 function dismissStartScreen() {
   Sound.startMusic();
   Sound.sfx("ui");
   G.startScreenOpen = false;
   $("start-screen").classList.add("hidden");
-  startRandomCase();
+  startNewCase();
 }
 
 function handleRoomTargetClick(hit) {
@@ -1969,15 +1957,15 @@ async function init() {
   }
 
   $("btn-start-play").addEventListener("click", () => dismissStartScreen());
-  $("btn-fired-retry").addEventListener("click", () => startRandomCase());
+  $("btn-fired-retry").addEventListener("click", () => startNewCase());
 
-  $("btn-new").addEventListener("click", () => startRandomCase());
+  $("btn-new").addEventListener("click", () => startNewCase());
   $("btn-cfg-toggle").addEventListener("click", (ev) => {
     ev.stopPropagation();
     $("cfg-menu").classList.toggle("hidden");
   });
   $("btn-cfg-apply").addEventListener("click", () => startNewCase());
-  $("btn-again").addEventListener("click", () => startRandomCase());
+  $("btn-again").addEventListener("click", () => startNewCase());
   $("chk-traceroute").addEventListener("change", () => {
     G.pathAware = $("chk-traceroute").checked;
     switchInferenceMode();
@@ -2100,7 +2088,7 @@ async function init() {
     }
     if (ev.code === "KeyN") {
       ev.preventDefault();
-      startRandomCase();
+      startNewCase();
       return;
     }
     if (/^Digit[1-7]$/.test(ev.code)) {
@@ -2121,7 +2109,7 @@ async function init() {
   });
 
   requestAnimationFrame(frame);
-  await startRandomCase();
+  await startNewCase();
 }
 
 init();

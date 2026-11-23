@@ -119,6 +119,9 @@
     footParity: 0,
   };
 
+  const MASTER_VOL = 0.38;
+  const MUSIC_VOL = 0.14;
+
   function ensureContext() {
     if (!AudioCtor) return null;
     if (!state.ctx) {
@@ -126,24 +129,24 @@
       state.ctx = ctx;
 
       const master = ctx.createGain();
-      master.gain.value = state.muted ? 0.0 : 0.90;
+      master.gain.value = state.muted ? 0.0 : MASTER_VOL;
       master.connect(ctx.destination);
       state.masterGain = master;
 
       const musicBus = ctx.createGain();
-      musicBus.gain.value = 0.28;
+      musicBus.gain.value = MUSIC_VOL;
       musicBus.connect(master);
 
       // Victorian chamber slapback ambience
       const delay = ctx.createDelay(0.5);
       delay.delayTime.value = 0.195;
       const fb = ctx.createGain();
-      fb.gain.value = 0.24;
+      fb.gain.value = 0.22;
       const wetLp = ctx.createBiquadFilter();
       wetLp.type = "lowpass";
       wetLp.frequency.value = 2100;
       const wetGain = ctx.createGain();
-      wetGain.gain.value = 0.20;
+      wetGain.gain.value = 0.09;
 
       musicBus.connect(delay);
       delay.connect(wetLp);
@@ -154,7 +157,7 @@
       state.musicGain = musicBus;
 
       const sfxBus = ctx.createGain();
-      sfxBus.gain.value = 0.72;
+      sfxBus.gain.value = 0.48;
       sfxBus.connect(master);
       state.sfxGain = sfxBus;
 
@@ -363,7 +366,7 @@
     state.musicPausedForEnd = false;
     if (state.musicGain) {
       state.musicGain.gain.cancelScheduledValues(ctx.currentTime);
-      state.musicGain.gain.setValueAtTime(0.28, ctx.currentTime);
+      state.musicGain.gain.setValueAtTime(MUSIC_VOL, ctx.currentTime);
     }
     if (!state.musicStarted) {
       state.musicStarted = true;
@@ -579,7 +582,7 @@
     state.muted = !state.muted;
     const ctx = ensureContext();
     if (ctx && state.masterGain) {
-      state.masterGain.gain.setValueAtTime(state.muted ? 0.0 : 0.90, ctx.currentTime);
+      state.masterGain.gain.setValueAtTime(state.muted ? 0.0 : MASTER_VOL, ctx.currentTime);
     }
     if (!state.muted && !state.musicPausedForEnd) {
       startMusic();
