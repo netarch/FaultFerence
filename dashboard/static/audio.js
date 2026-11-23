@@ -20,9 +20,9 @@
   const TOTAL_STEPS = 128;
   const STEP_SEC = 60.0 / 104.0 / 2.0;
 
-  // Restored balanced volume (fixing the accidental double reduction)
+  // Restored balanced volume (with slightly gentler solo violin level)
   const MASTER_VOL = 0.58;
-  const MUSIC_VOL = 0.22;
+  const MUSIC_VOL = 0.18;
   const SFX_VOL = 0.58;
 
   // Sparse, warm Pizzicato Cello bassline
@@ -276,7 +276,7 @@
     bowBp.frequency.value = 1900;
     bowBp.Q.value = 2.5;
     const bowGain = ctx.createGain();
-    bowGain.gain.setValueAtTime(0.032, t);
+    bowGain.gain.setValueAtTime(0.022, t);
     bowGain.gain.exponentialRampToValueAtTime(0.0005, t + 0.045);
     bowNoise.connect(bowBp);
     bowBp.connect(bowGain);
@@ -287,9 +287,9 @@
     const attack = Math.min(0.068, durSec * 0.28);
     const sustainEnd = Math.max(attack + 0.02, durSec * 0.78);
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.23, t + attack);
-    g.gain.linearRampToValueAtTime(0.26, t + sustainEnd * 0.6);
-    g.gain.setValueAtTime(0.22, t + sustainEnd);
+    g.gain.linearRampToValueAtTime(0.165, t + attack);
+    g.gain.linearRampToValueAtTime(0.185, t + sustainEnd * 0.6);
+    g.gain.setValueAtTime(0.155, t + sustainEnd);
     g.gain.exponentialRampToValueAtTime(0.0012, t + durSec + 0.025);
 
     osc1.connect(g);
