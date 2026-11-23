@@ -410,7 +410,94 @@ kbd {
   color: #fff;
 }
 
-/* ---------- Bigger, Context-Rich Switch / Link Action Card ---------- */
+/* ---------- Themed Paper-and-Ink Scrollbars ---------- */
+.pop-list, .wordle-scroll, .deck-sheet, .end-emoji {
+  scrollbar-width: thin;
+  scrollbar-color: #bfb6a2 #f3efe4;
+}
+.pop-list::-webkit-scrollbar,
+.wordle-scroll::-webkit-scrollbar,
+.deck-sheet::-webkit-scrollbar,
+.end-emoji::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.pop-list::-webkit-scrollbar-track,
+.wordle-scroll::-webkit-scrollbar-track,
+.deck-sheet::-webkit-scrollbar-track,
+.end-emoji::-webkit-scrollbar-track {
+  background: #f3efe4;
+  border-radius: 99px;
+  border: 1px solid #e3dccb;
+}
+.pop-list::-webkit-scrollbar-thumb,
+.wordle-scroll::-webkit-scrollbar-thumb,
+.deck-sheet::-webkit-scrollbar-thumb,
+.end-emoji::-webkit-scrollbar-thumb {
+  background: #bfb6a2;
+  border-radius: 99px;
+  border: 1.5px solid #f3efe4;
+}
+.pop-list::-webkit-scrollbar-thumb:hover,
+.wordle-scroll::-webkit-scrollbar-thumb:hover,
+.deck-sheet::-webkit-scrollbar-thumb:hover,
+.end-emoji::-webkit-scrollbar-thumb:hover {
+  background: var(--ink);
+}
+
+/* ---------- FIVES-Locked Card State in Action Pack ---------- */
+.play-card.fives-locked-card {
+  background: #f1ede4;
+  border-color: #b7afa0;
+  border-style: dashed;
+  box-shadow: 0 2px 0 #b7afa0;
+}
+.play-card.fives-locked-card:hover {
+  background: #f8f2e1;
+  border-color: #9e6804;
+}
+.play-card.fives-locked-card .card-art,
+.act-btn.fives-locked-act .act-ic {
+  background: #e4dfd3 !important;
+  border-color: #cfc8b8 !important;
+  position: relative;
+}
+.play-card.fives-locked-card .card-art > svg,
+.act-btn.fives-locked-act .act-ic > svg {
+  filter: grayscale(1);
+  opacity: 0.48;
+}
+.play-card.fives-locked-card .card-name,
+.play-card.fives-locked-card .card-desc {
+  color: #777063;
+}
+.lock-badge-mini {
+  position: absolute;
+  right: -6px;
+  bottom: -5px;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: #fff5d6;
+  border: 1.5px solid var(--ink);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
+}
+.unlock-fives-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 99px;
+  background: #fff3cf;
+  border: 1.5px solid #b77908;
+  color: #704800;
+}
+
+/* ---------- Switch / Link Action Card ---------- */
 .popover {
   position: absolute;
   width: 348px;
@@ -418,7 +505,7 @@ kbd {
   border: 2px solid var(--ink);
   border-radius: 16px;
   box-shadow: 0 12px 32px rgba(35, 32, 27, 0.22), 0 3px 0 var(--ink);
-  padding: 14px 15px 15px;
+  padding: 13px 14px 14px;
   z-index: 16;
   animation: popIn 0.14s cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
@@ -431,6 +518,7 @@ kbd {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+  margin-bottom: 10px;
 }
 .pop-title-group {
   display: flex;
@@ -465,27 +553,13 @@ kbd {
   font-weight: 800;
   flex-shrink: 0;
 }
-.pop-meta {
-  font-size: 13px;
-  color: var(--muted);
-  margin: 5px 0 11px;
-  line-height: 1.4;
-}
-.pop-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
-.pop-tag {
-  font-size: 11.5px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 5px;
-  background: var(--red-soft);
-  color: #a92828;
-}
 .pop-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 310px;
+  gap: 7px;
+  max-height: min(440px, calc(100vh - 205px));
   overflow-y: auto;
+  padding-right: 2px;
 }
 .act-btn {
   display: flex;
@@ -493,7 +567,7 @@ kbd {
   gap: 10px;
   width: 100%;
   text-align: left;
-  padding: 10px 11px;
+  padding: 8px 10px;
   border: 1.5px solid var(--line);
   border-left-width: 4px;
   border-radius: 12px;
@@ -507,7 +581,42 @@ kbd {
 .act-btn.plane-control { border-left-color: var(--indigo); }
 .act-btn.plane-physical { border-left-color: var(--coral); }
 .act-btn.tried { opacity: 0.55; }
-.act-btn.locked-act { background: #fcf7f7; border-color: #edd6d6; }
+
+/* Greyed-out constraint-blocked action card */
+.act-btn.locked-act {
+  background: #efece4;
+  border-color: #d6d0c2;
+  border-left-color: #b1aba0;
+  color: #777165;
+}
+.act-btn.locked-act:hover:not(:disabled) {
+  background: #eae6dc;
+  border-color: #b1aba0;
+  transform: none;
+}
+.act-btn.locked-act .act-ic {
+  background: #e3dfd4;
+}
+.act-btn.locked-act .act-ic > svg {
+  filter: grayscale(1);
+  opacity: 0.52;
+}
+.act-btn.locked-act .act-t { color: #6f695e; }
+
+/* Greyed-out FIVES-only action card (e.g. Dial 20% before FIVES is unlocked) */
+.act-btn.fives-locked-act {
+  background: #f1ede4;
+  border-color: #c8c0af;
+  border-left-color: #b79645;
+  border-style: dashed;
+  border-left-style: solid;
+}
+.act-btn.fives-locked-act:hover:not(:disabled) {
+  background: #f9f3e2;
+  border-color: #9e6804;
+}
+.act-btn.fives-locked-act .act-t { color: #6d6659; }
+
 .act-btn.fives-best { background: #fff8df; border-color: var(--gold); }
 .act-btn.accuse-btn { border-left-color: var(--green); background: #f4faf3; border-color: #b7dbb4; }
 .act-btn.accuse-btn:hover:not(:disabled) { background: #e8f6e6; border-color: var(--green); }
@@ -520,26 +629,34 @@ kbd {
   place-items: center;
   flex-shrink: 0;
   margin-top: 1px;
+  position: relative;
 }
 .act-main { flex: 1; min-width: 0; }
 .act-t {
   font-weight: 800;
-  font-size: 14.5px;
+  font-size: 14px;
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
 }
 .act-s {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
-  line-height: 1.35;
+  line-height: 1.32;
   margin-top: 2px;
 }
-.act-s.lock-hint { color: #b53838; font-weight: 600; }
+.act-s.lock-hint {
+  color: #777063;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
 .act-pills {
   display: flex;
   gap: 6px;
-  margin-top: 6px;
+  margin-top: 5px;
   flex-wrap: wrap;
 }
 .meta-chip {

@@ -4,6 +4,7 @@
 
 const $ = (id) => document.getElementById(id);
 const Sprites = window.Sprites;
+const Sound = window.GameAudio;
 const Engine = window.LocalEngine;
 
 const MODE_LABELS = {
@@ -52,6 +53,7 @@ const G = {
   visibleWeapons: [],
   fives: null,
   fivesHint: false,
+  fivesUnlocked: false,
   deckOpen: false,
   peekFault: false,
   infBase: "flock",       // Flock active by default at start
@@ -154,6 +156,7 @@ function triggerSloViolation() {
   G.det.ty = null;
   G.det.onArrive = null;
   G.shake = 14;
+  Sound.sfx("fired");
   detectiveSay("SLO violated. You are fired!", "bad", 9000, "shocked");
   $("fired-sub").textContent = `Faulty switch was ${G.state.failure.culprit_name}.`;
   $("slo-fired-overlay").classList.remove("hidden");
@@ -352,8 +355,28 @@ function weaponMatchesTarget(kind, target) {
   return actionsForTarget(target).filter((a) => a.kind === kind);
 }
 
+function isFivesOnlyKind(kind) {
+  return kind === "subtle_weight_shift";
+}
+
+async function unlockFives() {
+  G.fivesUnlocked = true;
+  G.fivesHint = true;
+  Sound.sfx("unlock");
+  if (G.infBase !== "flock") {
+    G.infBase = "flock";
+    await switchInferenceMode();
+  } else {
+    await refreshFivesHint();
+  }
+  toast("Unlocked with FIVES — Dial 20% enabled!");
+  if (G.deckOpen) renderDeckCards();
+  if (G.selected) openPopover(G.selected);
+}
+
 function openDeck() {
   if (!G.state || effectiveStatus() !== "playing") return;
+  Sound.sfx("ui");
   closePopover();
   G.deckOpen = true;
   renderDeckCards();
@@ -376,6 +399,11 @@ function setArmedWeapon(kind) {
     $("armed-banner").classList.add("hidden");
     return;
   }
+  if (isFivesOnlyKind(kind) && !G.fivesUnlocked) {
+    unlockFives();
+    return;
+  }
+  Sound.sfx("ui");
   closeDeck();
   closePopover();
   G.armedWeapon = kind;
@@ -404,6 +432,7 @@ function renderDeckCards() {
       ${active ? '<span class="active-pill">ACTIVE</span>' : ""}
     `;
     card.addEventListener("click", async () => {
+      Sound.sfx("ui");
       if (G.infBase !== lc.code) {
         G.infBase = lc.code;
         await switchInferenceMode();
@@ -420,24 +449,36 @@ function renderDeckCards() {
   G.visibleWeapons.forEach((w, idx) => {
     const allOfKind = G.actions.filter((a) => a.kind === w.kind);
     const sample = allOfKind.find((a) => a.violation === null) || allOfKind[0];
+    const fivesLocked = isFivesOnlyKind(w.kind) && !G.fivesUnlocked;
     const card = document.createElement("button");
     card.type = "button";
-    card.className = `play-card plane-${sample.plane}`;
+    card.className = fivesLocked
+      ? "play-card fives-locked-card"
+      : `play-card plane-${sample.plane}`;
+    const artHtml = fivesLocked
+      ? `<div class="card-art">${Sprites.icon(w.kind, 26)}<span class="lock-badge-mini">${Sprites.icon("lock", 12)}</span></div>`
+      : `<div class="card-art">${Sprites.icon(w.kind, 26)}</div>`;
+    const footHtml = fivesLocked
+      ? `<div class="card-foot"><span class="unlock-fives-pill">${Sprites.icon("lock", 11)} Unlock with FIVES</span></div>`
+      : `<div class="card-foot">
+           <span>Time: ~${fmtTime(sample.est_time)}</span>
+           <span>${IMPACT_WORDS[w.kind]}</span>
+         </div>`;
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
-        <div class="card-art">${Sprites.icon(w.kind, 26)}</div>
+        ${artHtml}
         <kbd>${idx + 1}</kbd>
       </div>
       <div>
         <div class="card-name">${w.short}</div>
-        <div class="card-desc">${w.hint}</div>
+        <div class="card-desc">${fivesLocked ? "Subtle fractional shift (FIVES only)" : w.hint}</div>
       </div>
-      <div class="card-foot">
-        <span>Time: ~${fmtTime(sample.est_time)}</span>
-        <span>${IMPACT_WORDS[w.kind]}</span>
-      </div>
+      ${footHtml}
     `;
-    card.addEventListener("click", () => setArmedWeapon(w.kind));
+    card.addEventListener("click", () => {
+      if (fivesLocked) unlockFives();
+      else setArmedWeapon(w.kind);
+    });
     actEl.appendChild(card);
   });
 }
@@ -559,7 +600,32 @@ function actionExplain(a) {
   return a.subtitle;
 }
 
+function popoverActionTitle(a) {
+  if (a.kind === "active_probe") return "Send Ping";
+  if (a.kind === "packet_mirror") return "Tap Traffic";
+  if (a.kind === "subtle_weight_shift") return "Dial 20%";
+  if (a.kind === "flow_link_drain") return "Detour Flow";
+  if (a.kind === "flow_group_split") return "Split Branches";
+  if (a.kind === "full_link_drain") return "Shut Link";
+  if (a.kind === "component_reset") return "Reboot Switch";
+  return a.title;
+}
+
+function cleanViolationReason(v) {
+  if (!v) return "";
+  if (v.startsWith("Protected spine")) return "Protected spine — reboot disabled";
+  if (v.startsWith("Protected switch")) return "Protected switch — detour disabled";
+  if (v.startsWith("No filtered tap") || v.startsWith("No tap hardware") || v.startsWith("No raw tap")) {
+    return "No packet-tap hardware here";
+  }
+  if (v.startsWith("No probe support")) return "Ping origination disabled here";
+  if (v.startsWith("External peer")) return "External peer — read-only";
+  if (v.startsWith("Flow endpoint")) return "Edge switch — reboot disabled";
+  return v.replace(/\s*\([^)]*\)/g, "");
+}
+
 function openPopover(target, filterKind = null) {
+  const wasHidden = $("action-popover").classList.contains("hidden");
   G.selected = target;
   const pop = $("action-popover");
   const list = $("pop-list");
@@ -577,18 +643,12 @@ function openPopover(target, filterKind = null) {
     if (n.is_endpoint) {
       pill.textContent = "Edge Switch";
       pill.className = "status-pill edge";
-      $("pop-meta").textContent = "Connects directly to an endpoint host. You can send test pings from here.";
     } else if (n.suspect) {
       pill.textContent = "Suspect";
       pill.className = "status-pill suspect";
-      const tagsHtml = n.tags.length
-        ? `<div class="pop-tags">${n.tags.map((t) => `<span class="pop-tag">${TAG_LABELS[t] || t}</span>`).join("")}</div>`
-        : "";
-      $("pop-meta").innerHTML = `On the broken path — could be the faulty switch.${tagsHtml}`;
     } else {
       pill.textContent = "Ruled Out";
       pill.className = "status-pill out";
-      $("pop-meta").textContent = "Already cleared by earlier clues.";
     }
   } else {
     const nu = nodeById(target.u), nv = nodeById(target.v);
@@ -597,9 +657,6 @@ function openPopover(target, filterKind = null) {
     const active = edge.flow_weight > 0.001;
     pill.textContent = active ? "Active Link" : "Detoured";
     pill.className = "status-pill " + (active ? "edge" : "out");
-    $("pop-meta").textContent = active
-      ? "Carries traffic between host-a and host-b. Reroute this link to test if loss changes."
-      : "Traffic was moved off this link during the last action.";
   }
 
   const bestKey = G.fivesHint && G.fives && G.fives.best ? G.fives.best.key : null;
@@ -608,35 +665,68 @@ function openPopover(target, filterKind = null) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.disabled = gameDone;
+    const label = popoverActionTitle(a);
     const isBest = bestKey === a.key;
-    const isLocked = a.violation !== null;
-    btn.className =
-      `act-btn plane-${a.plane}` +
-      (a.tried ? " tried" : "") +
-      (isLocked ? " locked-act" : "") +
-      (isBest ? " fives-best" : "");
-    const star = isBest ? Sprites.icon("star", 14) : "";
-    const subHtml = isLocked
-      ? `<div class="act-s lock-hint">${Sprites.icon("shield", 13)} Safety rule: ${a.violation}</div>`
-      : `<div class="act-s">${actionExplain(a)}</div>`;
-    const pillsHtml = isLocked
-      ? ""
-      : `<div class="act-pills">
-           <span class="meta-chip">Time: ~${fmtTime(a.est_time)}</span>
-           <span class="meta-chip">Impact: ${IMPACT_WORDS[a.kind]}</span>
-         </div>`;
-    btn.innerHTML = `
-      <span class="act-ic">${Sprites.icon(a.kind, 22)}</span>
-      <div class="act-main">
-        <div class="act-t"><span>${a.title}</span>${star}</div>
-        ${subHtml}
-        ${pillsHtml}
-      </div>
-    `;
-    btn.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      walkAndApply(a);
-    });
+    const fivesLocked = isFivesOnlyKind(a.kind) && !G.fivesUnlocked;
+    const isPolicyLocked = a.violation !== null;
+
+    if (fivesLocked) {
+      btn.className = "act-btn fives-locked-act";
+      btn.innerHTML = `
+        <span class="act-ic">
+          ${Sprites.icon(a.kind, 22)}
+          <span class="lock-badge-mini">${Sprites.icon("lock", 12)}</span>
+        </span>
+        <div class="act-main">
+          <div class="act-t">
+            <span>${label}</span>
+            <span class="unlock-fives-pill">${Sprites.icon("lock", 11)} Unlock with FIVES</span>
+          </div>
+          <div class="act-s">Subtle fractional shift — click to unlock FIVES.</div>
+        </div>
+      `;
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        unlockFives();
+      });
+    } else if (isPolicyLocked) {
+      btn.className = `act-btn plane-${a.plane} locked-act`;
+      btn.innerHTML = `
+        <span class="act-ic">
+          ${Sprites.icon(a.kind, 22)}
+          <span class="lock-badge-mini">${Sprites.icon("lock", 12)}</span>
+        </span>
+        <div class="act-main">
+          <div class="act-t"><span>${label}</span></div>
+          <div class="act-s lock-hint">${cleanViolationReason(a.violation)}</div>
+        </div>
+      `;
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        walkAndApply(a);
+      });
+    } else {
+      btn.className =
+        `act-btn plane-${a.plane}` +
+        (a.tried ? " tried" : "") +
+        (isBest ? " fives-best" : "");
+      const star = isBest ? Sprites.icon("star", 14) : "";
+      btn.innerHTML = `
+        <span class="act-ic">${Sprites.icon(a.kind, 22)}</span>
+        <div class="act-main">
+          <div class="act-t"><span>${label}</span>${star}</div>
+          <div class="act-s">${actionExplain(a)}</div>
+          <div class="act-pills">
+            <span class="meta-chip">Time: ~${fmtTime(a.est_time)}</span>
+            <span class="meta-chip">Impact: ${IMPACT_WORDS[a.kind]}</span>
+          </div>
+        </div>
+      `;
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        walkAndApply(a);
+      });
+    }
     list.appendChild(btn);
   });
 
@@ -650,7 +740,7 @@ function openPopover(target, filterKind = null) {
       accBtn.innerHTML = `
         <span class="act-ic">${Sprites.icon("accuse", 22)}</span>
         <div class="act-main">
-          <div class="act-t"><span>Accuse ${n.name}</span></div>
+          <div class="act-t"><span>Accuse as Faulty</span></div>
           <div class="act-s">Declare this switch the culprit and close the case.</div>
         </div>
       `;
@@ -662,6 +752,7 @@ function openPopover(target, filterKind = null) {
     }
   }
 
+  if (wasHidden) Sound.sfx("ui");
   pop.classList.remove("hidden");
   positionPopover(target);
 }
@@ -675,7 +766,7 @@ function positionPopover(target) {
   let left = st.anchorX + 34;
   if (left + popW > G.vw - 12) left = st.anchorX - popW - 34;
   left = Math.max(12, Math.min(G.vw - popW - 12, left));
-  const top = Math.max(12, Math.min(G.vh - popH - 64, st.anchorY - popH * 0.45));
+  const top = Math.max(10, Math.min(G.vh - popH - 14, st.anchorY - popH * 0.45));
   pop.style.left = `${left}px`;
   pop.style.top = `${top}px`;
 }
@@ -951,6 +1042,8 @@ async function refreshFivesHint() {
 // ---------------------------------------------------------------------------
 async function startNewCase(seedOverride) {
   G.autoPlay = false;
+  G.fivesHint = false;
+  G.fivesUnlocked = false;
   setSolveBtnLabel(false);
   setArmedWeapon(null);
   closeDeck();
@@ -1016,17 +1109,22 @@ async function applyAction(action) {
   }
 
   if (res.status === "rejected") {
+    Sound.sfx("blocked");
     detectiveSay(`Blocked: ${res.reason}`, "bad", 4400, "shocked");
     toast(`Blocked: ${res.reason}`, true);
   } else {
     const cleared = res.eq_before - res.eq_after;
     const out = analyzeOutcome(res);
+    Sound.sfx(res.action.kind, out.clean);
     if (G.state.stats.status === "localized") {
+      setTimeout(() => Sound.sfx("win"), 220);
       detectiveSay(`Solved! Faulty switch is ${G.state.failure.culprit_name}!`, "win", 7000, "happy");
       triggerConfetti();
     } else if (G.state.stats.status !== "playing") {
+      setTimeout(() => Sound.sfx("fired"), 220);
       detectiveSay(`Lost track of ${G.state.failure.culprit_name}!`, "bad", 5500, "shocked");
     } else if (cleared > 0) {
+      setTimeout(() => Sound.sfx("cleared"), 200);
       detectiveSay(`${out.say} — ruled out ${cleared}!`, "good", 4400, "happy");
     } else if (G.infBase === "set" && res.action.kind === "subtle_weight_shift") {
       detectiveSay(`${out.say} — switch to Flock in Actions to read gentle shifts!`, "info", 5000, "thinking");
@@ -1046,13 +1144,16 @@ async function accuseSwitch(nodeId) {
   setArmedWeapon(null);
   G.busy = true;
   closePopover();
+  Sound.sfx("accuse");
   const data = Engine.accuse(G.state.id, nodeId);
   G.state = data.state;
   G.actions = data.actions;
   if (G.state.stats.status === "localized") {
+    setTimeout(() => Sound.sfx("win"), 160);
     detectiveSay(`Solved! ${G.state.failure.culprit_name} was the culprit!`, "win", 7000, "happy");
     triggerConfetti();
   } else {
+    setTimeout(() => Sound.sfx("fired"), 160);
     const nm = nodeById(nodeId).name;
     detectiveSay(`Wrong! ${nm} was healthy — fault: ${G.state.failure.culprit_name}.`, "bad", 6500, "shocked");
     G.shake = 10;
@@ -1092,6 +1193,12 @@ async function solveWithFives() {
     return;
   }
   if (!G.state || effectiveStatus() !== "playing") return;
+  G.fivesUnlocked = true;
+  Sound.sfx("unlock");
+  if (G.infBase !== "flock") {
+    G.infBase = "flock";
+    await switchInferenceMode();
+  }
   closeDeck();
   closePopover();
   setArmedWeapon(null);
@@ -1564,6 +1671,7 @@ function stepWorld(dt) {
     if (vx < 0) G.det.facing = -1;
     if (vx > 0) G.det.facing = 1;
     G.det.walkPhase += dt * 15;
+    if (!G.startScreenOpen) Sound.sfx("step");
 
     let near = null, bestD = 52;
     for (const n of G.state.nodes) {
@@ -1594,6 +1702,7 @@ function stepWorld(dt) {
       G.det.x += (dx / dist) * step;
       G.det.y += (dy / dist) * step;
       G.det.walkPhase += dt * 17;
+      if (!G.startScreenOpen) Sound.sfx("step");
     }
   }
 
@@ -1767,6 +1876,12 @@ function resizeCanvas() {
   if (G.selected) positionPopover(G.selected);
 }
 
+function updateSoundBtn() {
+  const muted = Sound.isMuted();
+  $("btn-sound").innerHTML = `${Sprites.icon(muted ? "sound_off" : "sound_on", 15)}<span>${muted ? "Muted" : "Sound"}</span>`;
+  $("btn-sound").classList.toggle("on", !muted);
+}
+
 function mountStaticIcons() {
   $("brand-icon").innerHTML = Sprites.icon("detective", 26);
   $("st-ico-1").innerHTML = Sprites.icon("probe", 15);
@@ -1774,6 +1889,7 @@ function mountStaticIcons() {
   $("btn-start-play").innerHTML = `${Sprites.icon("detective", 18)}<span>Start Game</span>`;
   $("fired-icon").innerHTML = Sprites.icon("warning", 24);
   $("btn-fired-retry").innerHTML = `${Sprites.icon("dice", 16)}<span>Try Another Case</span>`;
+  updateSoundBtn();
   $("btn-peek").innerHTML = `${Sprites.icon("bug", 15)}<span>Peek</span>`;
   $("btn-new").innerHTML = `${Sprites.icon("dice", 15)}<span>New Case</span>`;
   $("btn-cfg-toggle").innerHTML = Sprites.icon("chevron", 14);
@@ -1785,6 +1901,8 @@ function mountStaticIcons() {
 }
 
 function dismissStartScreen() {
+  Sound.startMusic();
+  Sound.sfx("ui");
   $("topology").value = $("start-topology").value;
   $("failure_mode").value = $("start-failure-mode").value;
   G.startScreenOpen = false;
@@ -1876,7 +1994,13 @@ async function init() {
     toast("Copied grid!");
   });
 
+  $("btn-sound").addEventListener("click", () => {
+    Sound.toggleMute();
+    updateSoundBtn();
+  });
+
   $("btn-peek").addEventListener("click", () => {
+    Sound.sfx("ui");
     G.peekFault = !G.peekFault;
     $("btn-peek").classList.toggle("on", G.peekFault);
     renderWordleGrid(false);
@@ -1889,7 +2013,14 @@ async function init() {
 
   const toggleFivesHint = async () => {
     G.fivesHint = !G.fivesHint;
+    if (G.fivesHint) {
+      G.fivesUnlocked = true;
+      Sound.sfx("hint");
+    } else {
+      Sound.sfx("ui");
+    }
     await refreshFivesHint();
+    if (G.deckOpen) renderDeckCards();
     if (G.selected) openPopover(G.selected);
   };
   $("btn-fives-hint").addEventListener("click", toggleFivesHint);
@@ -1953,6 +2084,12 @@ async function init() {
       handleRoomTargetClick(G.nearest);
       return;
     }
+    if (ev.code === "KeyM") {
+      ev.preventDefault();
+      Sound.toggleMute();
+      updateSoundBtn();
+      return;
+    }
     if (ev.code === "KeyF") {
       ev.preventDefault();
       toggleFivesHint();
@@ -1967,7 +2104,9 @@ async function init() {
       const idx = Number(ev.code.slice(-1)) - 1;
       if (G.popActions.length > 0 && idx < G.popActions.length) {
         ev.preventDefault();
-        walkAndApply(G.popActions[idx]);
+        const chosen = G.popActions[idx];
+        if (isFivesOnlyKind(chosen.kind) && !G.fivesUnlocked) unlockFives();
+        else walkAndApply(chosen);
       } else if (idx < G.visibleWeapons.length) {
         ev.preventDefault();
         setArmedWeapon(G.visibleWeapons[idx].kind);

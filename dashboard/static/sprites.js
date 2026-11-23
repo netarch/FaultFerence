@@ -282,6 +282,25 @@
       '<polygon points="17.5,2.8 18.8,6.2 22.2,7.5 18.8,8.8 17.5,12.2 16.2,8.8 12.8,7.5 16.2,6.2" fill="#f5c84c"/>' +
       '<circle cx="8" cy="6.5" r="1.2" fill="#e2a432" stroke="none"/>'
     ),
+
+    lock: (
+      '<path d="M8 11V7.6a4 4 0 0 1 8 0V11"/>' +
+      '<rect x="5" y="11" width="14" height="10" rx="2.6" fill="#e6e1d3"/>' +
+      '<circle cx="12" cy="15.4" r="1.4" fill="#23201b" stroke="none"/>' +
+      '<line x1="12" y1="16.6" x2="12" y2="18.6"/>'
+    ),
+
+    sound_on: (
+      '<polygon points="4,9.5 8.5,9.5 13.5,5 13.5,19 8.5,14.5 4,14.5" fill="#fde6a8"/>' +
+      '<path d="M16.6 8.8a4.6 4.6 0 0 1 0 6.4" stroke="#1e9e8e"/>' +
+      '<path d="M19.2 6.2a8.2 8.2 0 0 1 0 11.6" stroke="#1e9e8e"/>'
+    ),
+
+    sound_off: (
+      '<polygon points="4,9.5 8.5,9.5 13.5,5 13.5,19 8.5,14.5 4,14.5" fill="#e6e1d3"/>' +
+      '<line x1="16.5" y1="9.5" x2="21" y2="14.5" stroke="#d94848"/>' +
+      '<line x1="21" y1="9.5" x2="16.5" y2="14.5" stroke="#d94848"/>'
+    ),
   };
 
   const ICON_ALIASES = {
