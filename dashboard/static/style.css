@@ -897,7 +897,7 @@ kbd {
   align-items: center;
   gap: 6px;
 }
-.end-compare { font-size: 13.5px; color: var(--muted); font-weight: 600; }
+.end-compare { font-size: 13.5px; color: var(--muted); font-weight: 600; white-space: pre-line; line-height: 1.45; }
 .end-emoji {
   margin: 0;
   padding: 8px 10px;

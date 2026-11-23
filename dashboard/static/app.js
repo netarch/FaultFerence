@@ -65,6 +65,8 @@ const G = {
   nearest: null,
   busy: false,
   autoPlay: false,
+  playedByFives: false,
+  userRunSummary: null,
   startScreenOpen: true,
   sloBudgetSec: 150,
   wallElapsedSec: 0,
@@ -818,7 +820,8 @@ function renderHud() {
   const done = effectiveStatus() !== "playing";
   $("btn-actions").disabled = done;
   $("btn-fives-hint").disabled = done;
-  if (!G.autoPlay) $("btn-fives-solve").disabled = done;
+  $("btn-fives-solve").disabled = false;
+  if (!G.autoPlay) setSolveBtnLabel(false);
 }
 
 function shortColName(name) {
@@ -960,9 +963,10 @@ function renderEndCard() {
   }
   card.classList.remove("hidden");
   if (status === "localized") {
-    $("end-headline").innerHTML = `${Sprites.icon("trophy", 19)}<span>Solved! Faulty switch: ${st.failure.culprit_name}</span>`;
+    $("end-headline").innerHTML = `${Sprites.icon("trophy", 19)}<span>${G.playedByFives ? "FIVES Solved!" : "Solved!"} Faulty switch: ${st.failure.culprit_name}</span>`;
+    const runLine = `${G.playedByFives ? "FIVES: " : ""}${s.actions} actions · ${fmtCountdown(sloRemainingSec())} SLO left · ${fmtImpactHud(s.disruption)} impact`;
     $("end-compare").textContent =
-      `${s.actions} actions · ${fmtCountdown(sloRemainingSec())} SLO left · ${fmtImpactHud(s.disruption)} impact`;
+      G.playedByFives && G.userRunSummary ? `${runLine}\n${G.userRunSummary}` : runLine;
   } else if (status === "slo_violated") {
     $("end-headline").innerHTML = `${Sprites.icon("warning", 19)}<span>SLO violated. You are fired!</span>`;
     $("end-compare").textContent =
@@ -1007,10 +1011,14 @@ async function refreshFivesHint() {
 // ---------------------------------------------------------------------------
 // Game Actions (100% Client-Side via `window.LocalEngine`)
 // ---------------------------------------------------------------------------
-async function startNewCase(seedOverride) {
+async function startNewCase(seedOverride, preserveComparison = false) {
   G.autoPlay = false;
   G.fivesHint = false;
   G.fivesUnlocked = false;
+  G.playedByFives = false;
+  if (!preserveComparison) {
+    G.userRunSummary = null;
+  }
   setSolveBtnLabel(false);
   setArmedWeapon(null);
   closeDeck();
@@ -1152,9 +1160,13 @@ async function switchInferenceMode() {
 }
 
 function setSolveBtnLabel(running) {
-  $("btn-fives-solve").innerHTML = running
-    ? `${Sprites.icon("pause", 15)}<span>Stop</span>`
-    : `${Sprites.icon("wand", 16)}<span>Solve with FIVES</span>`;
+  if (running) {
+    $("btn-fives-solve").innerHTML = `${Sprites.icon("pause", 15)}<span>Stop</span>`;
+    return;
+  }
+  const done = G.state && effectiveStatus() !== "playing";
+  const lbl = done ? "Replay with FIVES" : "Solve with FIVES";
+  $("btn-fives-solve").innerHTML = `${Sprites.icon("wand", 16)}<span>${lbl}</span>`;
 }
 
 async function solveWithFives() {
@@ -1163,7 +1175,29 @@ async function solveWithFives() {
     setSolveBtnLabel(false);
     return;
   }
-  if (!G.state || effectiveStatus() !== "playing") return;
+  if (!G.state) return;
+
+  // If the user already finished this case on their own, save their score and replay the exact same case with FIVES!
+  if (effectiveStatus() !== "playing") {
+    const st = effectiveStatus();
+    const s = G.state.stats;
+    if (!G.playedByFives) {
+      if (st === "localized") {
+        G.userRunSummary = `You: ${s.actions} actions · ${fmtCountdown(sloRemainingSec())} SLO left · ${fmtImpactHud(s.disruption)} impact`;
+      } else if (st === "slo_violated") {
+        G.userRunSummary = `You: SLO violated (${s.actions} actions)`;
+      } else if (st === "mislocalized") {
+        G.userRunSummary = `You: Wrong switch (${s.actions} actions)`;
+      } else {
+        G.userRunSummary = `You: Unsolved (${s.actions} actions)`;
+      }
+    }
+    $("topology").value = G.state.topology;
+    $("failure_mode").value = G.state.failure.mode;
+    await startNewCase(G.state.seed, true);
+  }
+
+  G.playedByFives = true;
   G.fivesUnlocked = true;
   Sound.sfx("unlock");
   if (G.infBase !== "flock") {
