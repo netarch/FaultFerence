@@ -13,6 +13,7 @@
 (function () {
   const AudioCtor = window.AudioContext || window.webkitAudioContext;
   const YT_VIDEO_ID = "l6B-8V4LyaU";
+  const YT_START_SEC = 10;
   const YT_VOL = 24;
 
   function mtof(midi) {
@@ -113,6 +114,7 @@
     ytBooted: false,
     ytPlayer: null,
     ytReady: false,
+    ytPositionedInitial: false,
     ytPlaying: false,
     ytFailed: false,
     ytTimedOutOnce: false,
@@ -144,7 +146,8 @@
         height: "113",
         videoId: YT_VIDEO_ID,
         playerVars: {
-          autoplay: 0,
+          autoplay: 1,
+          start: YT_START_SEC,
           controls: 0,
           disablekb: 1,
           fs: 0,
@@ -164,6 +167,10 @@
               ev.target.mute();
             } else {
               ev.target.unMute();
+            }
+            if (!state.ytPositionedInitial) {
+              state.ytPositionedInitial = true;
+              ev.target.seekTo(YT_START_SEC, true);
             }
             if (state.musicActive && !state.muted) {
               ev.target.playVideo();
@@ -185,7 +192,7 @@
             } else if (ev.data === 0) {
               state.ytPlaying = false;
               if (state.musicActive && !state.muted) {
-                ev.target.seekTo(0, true);
+                ev.target.seekTo(YT_START_SEC, true);
                 ev.target.playVideo();
               }
             } else if (ev.data === 2) {
@@ -232,6 +239,24 @@
     } else {
       initYoutubeAudio();
     }
+
+    const resumeOnGesture = () => {
+      if (state.muted) return;
+      if (state.ctx && state.ctx.state === "suspended") {
+        state.ctx.resume().then(() => {
+          if (state.musicActive && state.synthRunning && !state.ytPlaying) {
+            schedulerTick();
+          }
+        });
+      }
+      if (state.musicActive && !state.ytPlaying && state.ytReady && state.ytPlayer && !state.ytFailed) {
+        state.ytPlayer.unMute();
+        state.ytPlayer.setVolume(YT_VOL);
+        state.ytPlayer.playVideo();
+      }
+    };
+    document.addEventListener("pointerdown", resumeOnGesture, { passive: true });
+    document.addEventListener("keydown", resumeOnGesture, { passive: true });
   }
 
   // ---------------------------------------------------------------------------
@@ -481,6 +506,7 @@
     initYoutubeAudio();
 
     if (state.ytEnabled && !state.ytFailed) {
+      if (state.ytPlaying) return;
       if (state.ytReady && state.ytPlayer && typeof state.ytPlayer.playVideo === "function") {
         state.ytPlayer.unMute();
         state.ytPlayer.setVolume(YT_VOL);

@@ -12,27 +12,29 @@
   <!-- Start Game Screen -->
   <div id="start-screen" class="start-screen">
     <div class="start-card">
-      <canvas id="start-hero" class="start-hero" width="420" height="96"></canvas>
+      <div class="start-top-row">
+        <span class="start-top-spacer" aria-hidden="true"></span>
+        <div class="start-detective-badge" id="start-detective-icon" aria-hidden="true"></div>
+        <button type="button" class="pill-btn start-sound-btn" id="btn-start-sound" title="Toggle music &amp; sound [M]">Sound</button>
+      </div>
 
       <h1 class="start-title">Inspector Switch</h1>
-      <p class="start-lead">
-        Traffic to <strong>host-b</strong> is dropping.<br>
-        <span class="start-question">Can you find the fault before the SLO violation?</span>
-      </p>
 
-      <div class="start-steps">
-        <div class="start-step">
-          <span class="step-ico" id="st-ico-1"></span>
-          <div>Inspect devices, and telemetry. Take manual actions to debug OR,</div>
-        </div>
-        <div class="start-step">
-          <span class="step-ico" id="st-ico-3"></span>
-          <div>Let <strong>FIVES</strong> take the wheel and automate localization!</div>
-        </div>
+      <div class="start-story">
+        <p>
+          You are <strong>Inspector Switch</strong>, whose mission is to find and fix faulty devices in the large hyperscaler datacenter, <strong>Poodle</strong>. With thousands of devices connected in a complex mesh, it can easily become a nightmare to identify which component is faulty, despite advanced fault localization tools in your arsenal.
+        </p>
+        <p>
+          In such situations, you can resort to making manual invasive actions on the network, but keep in mind that they can be time-consuming and cause disruptions, both of which can make you lose your job.
+        </p>
+        <p>
+          In order to save yourself from being replaced by an AI, you can try the new booster pack: <strong>FIVES</strong>. FIVES is a fault localization framework that intelligently picks operations to localize the fault, quickly and with low disruption. Good luck — <em>May the fault not be with you!</em>
+        </p>
       </div>
 
       <div class="start-btns">
         <button type="button" class="start-btn primary" id="btn-start-play">Start Game</button>
+        <a class="start-btn secondary" id="btn-start-thesis" href="https://rahulbothra.com/projects/fives/thesis.pdf" target="_blank" rel="noopener noreferrer">FIVES Thesis</a>
       </div>
     </div>
   </div>
@@ -46,6 +48,7 @@
     <div class="toolbar">
       <button type="button" class="pill-btn" id="btn-sound" title="Toggle Sherlock music &amp; sound effects [M]">Sound</button>
       <button type="button" class="pill-btn" id="btn-peek" title="Show or hide the faulty switch">Peek</button>
+      <a class="pill-btn" id="btn-top-thesis" href="https://rahulbothra.com/projects/fives/thesis.pdf" target="_blank" rel="noopener noreferrer" title="Read the FIVES MS Thesis (PDF)">FIVES Thesis</a>
 
       <div class="split-btn-wrap" id="config-wrap">
         <button type="button" class="split-main" id="btn-new" title="Start a new case [N]">New Case</button>
@@ -188,6 +191,7 @@
           <div class="end-headline" id="end-headline">Mystery Solved!</div>
           <div class="end-compare" id="end-compare"></div>
           <div class="end-btns">
+            <a class="pill-btn" id="btn-end-thesis" href="https://rahulbothra.com/projects/fives/thesis.pdf" target="_blank" rel="noopener noreferrer">FIVES Thesis</a>
             <button type="button" class="pill-btn primary" id="btn-again">Next Case</button>
           </div>
         </div>

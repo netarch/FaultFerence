@@ -1077,7 +1077,7 @@ async function startNewCase(seedOverride, preserveComparison = false) {
   closePopover();
   $("cfg-menu").classList.add("hidden");
   $("slo-fired-overlay").classList.add("hidden");
-  if (!G.startScreenOpen) Sound.startMusic();
+  Sound.startMusic();
   G.busy = true;
   const payload = {
     topology: $("topology").value,
@@ -1812,118 +1812,11 @@ function renderWorld(now) {
   ctx.restore();
 }
 
-function renderStartHero(now) {
-  if (!G.startScreenOpen || !G.heroCtx) return;
-  const ctx = G.heroCtx;
-  const w = 420;
-  const h = 96;
-  ctx.save();
-  ctx.clearRect(0, 0, w, h);
-  ctx.scale(G.dpr, G.dpr);
-
-  // Paper grid backdrop
-  ctx.fillStyle = "#f8f4e8";
-  ctx.fillRect(0, 0, w, h);
-  ctx.strokeStyle = "#ede7d6";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let x = 24; x < w; x += 24) {
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, h);
-  }
-  for (let y = 24; y < h; y += 24) {
-    ctx.moveTo(0, y);
-    ctx.lineTo(w, y);
-  }
-  ctx.stroke();
-
-  // Cables: host-a -> sw-1 -> sw-2 (faulty) -> host-b
-  const pts = [
-    [42, 54],
-    [150, 50],
-    [268, 50],
-    [376, 54],
-  ];
-  ctx.strokeStyle = "#aca391";
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(pts[1][0], pts[1][1]);
-  ctx.lineTo(pts[2][0], pts[2][1]);
-  ctx.stroke();
-
-  ctx.strokeStyle = "rgba(30, 158, 142, 0.55)";
-  ctx.lineWidth = 2.4;
-  ctx.setLineDash([5, 4]);
-  ctx.lineDashOffset = -(now * 0.025) % 18;
-  ctx.beginPath();
-  ctx.moveTo(pts[0][0], pts[0][1]);
-  ctx.lineTo(pts[1][0], pts[1][1]);
-  ctx.moveTo(pts[2][0], pts[2][1]);
-  ctx.lineTo(pts[3][0], pts[3][1]);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Endpoints + 2 switches + glitch bug + Inspector Switch patrolling
-  Sprites.drawHostProp(ctx, pts[0][0], pts[0][1], true, "host-a");
-  Sprites.drawRackProp(
-    ctx,
-    pts[1][0],
-    pts[1][1],
-    34,
-    40,
-    { suspect: false, solved: false, isEndpoint: false, posterior: 0, selected: false, hovered: false, compact: true, showLock: false, id: 1 },
-    now
-  );
-  Sprites.drawRackProp(
-    ctx,
-    pts[2][0],
-    pts[2][1],
-    34,
-    40,
-    { suspect: true, solved: false, isEndpoint: false, posterior: 0.85, selected: false, hovered: true, compact: true, showLock: false, id: 2 },
-    now
-  );
-  Sprites.drawBug(ctx, pts[2][0], pts[2][1] - 24, now);
-  Sprites.drawHostProp(ctx, pts[3][0], pts[3][1], true, "host-b");
-
-  // Bobbing `! Loss` pill above host-b
-  const bob = Math.sin(now * 0.006) * 2;
-  ctx.fillStyle = "#d94848";
-  roundRect(ctx, pts[3][0] - 22, pts[3][1] - 32 + bob, 44, 16, 6);
-  ctx.fill();
-  ctx.fillStyle = "#fff";
-  ctx.font = "800 10px Inter, sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("! Loss", pts[3][0], pts[3][1] - 23.5 + bob);
-
-  // Detective patrolling toward the suspect switch
-  const sweep = (Math.sin(now * 0.0018) + 1) * 0.5;
-  const dx = 98 + sweep * 118;
-  const facing = Math.cos(now * 0.0018) >= 0 ? 1 : -1;
-  Sprites.drawDetective(
-    ctx,
-    {
-      x: dx,
-      y: 74,
-      facing,
-      walkPhase: now * 0.012,
-      walking: true,
-      jumpT: 0,
-      fivesOpen: true,
-      mood: "walk",
-    },
-    now
-  );
-  ctx.restore();
-}
-
 function frame(now) {
   const dt = Math.min(0.05, (now - G.lastTs) / 1000);
   G.lastTs = now;
   stepWorld(dt);
   renderWorld(now);
-  renderStartHero(now);
   requestAnimationFrame(frame);
 }
 
@@ -1938,10 +1831,6 @@ function resizeCanvas() {
   G.dpr = window.devicePixelRatio || 1;
   G.canvas.width = Math.round(G.vw * G.dpr);
   G.canvas.height = Math.round(G.vh * G.dpr);
-  if (G.heroCanvas) {
-    G.heroCanvas.width = Math.round(420 * G.dpr);
-    G.heroCanvas.height = Math.round(96 * G.dpr);
-  }
   G.det.x = Math.max(34, Math.min(G.vw - 34, G.det.x));
   G.det.y = Math.max(40, Math.min(G.vh - 58, G.det.y));
   if (G.selected) positionPopover(G.selected);
@@ -1949,15 +1838,20 @@ function resizeCanvas() {
 
 function updateSoundBtn() {
   const muted = Sound.isMuted();
-  $("btn-sound").innerHTML = `${Sprites.icon(muted ? "sound_off" : "sound_on", 15)}<span>${muted ? "Muted" : "Sound"}</span>`;
+  const html = `${Sprites.icon(muted ? "sound_off" : "sound_on", 15)}<span>${muted ? "Muted" : "Sound"}</span>`;
+  $("btn-sound").innerHTML = html;
   $("btn-sound").classList.toggle("on", !muted);
+  $("btn-start-sound").innerHTML = html;
+  $("btn-start-sound").classList.toggle("on", !muted);
 }
 
 function mountStaticIcons() {
   $("brand-icon").innerHTML = Sprites.icon("detective", 26);
-  $("st-ico-1").innerHTML = Sprites.icon("probe", 15);
-  $("st-ico-3").innerHTML = Sprites.icon("monocle", 15);
+  $("start-detective-icon").innerHTML = Sprites.icon("detective", 46);
   $("btn-start-play").innerHTML = `${Sprites.icon("detective", 18)}<span>Start Game</span>`;
+  $("btn-start-thesis").innerHTML = `${Sprites.icon("thesis", 18)}<span>FIVES Thesis</span>`;
+  $("btn-top-thesis").innerHTML = `${Sprites.icon("thesis", 15)}<span>FIVES Thesis</span>`;
+  $("btn-end-thesis").innerHTML = `${Sprites.icon("thesis", 14)}<span>FIVES Thesis</span>`;
   $("fired-icon").innerHTML = Sprites.icon("warning", 24);
   $("btn-fired-retry").innerHTML = `${Sprites.icon("dice", 16)}<span>Try Another Case</span>`;
   updateSoundBtn();
@@ -2009,8 +1903,6 @@ async function init() {
   mountStaticIcons();
   G.canvas = $("world");
   G.ctx = G.canvas.getContext("2d");
-  G.heroCanvas = $("start-hero");
-  G.heroCtx = G.heroCanvas.getContext("2d");
   resizeCanvas();
   new ResizeObserver(resizeCanvas).observe($("room-wrap"));
 
@@ -2051,13 +1943,14 @@ async function init() {
 
   const handleToggleSound = () => {
     const muted = Sound.toggleMute();
-    if (!muted && !G.startScreenOpen && effectiveStatus() === "playing") {
+    if (!muted && (G.startScreenOpen || effectiveStatus() === "playing")) {
       Sound.startMusic();
     }
     updateSoundBtn();
   };
 
   $("btn-sound").addEventListener("click", handleToggleSound);
+  $("btn-start-sound").addEventListener("click", handleToggleSound);
 
   $("btn-peek").addEventListener("click", () => {
     Sound.sfx("ui");

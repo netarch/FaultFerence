@@ -87,6 +87,8 @@ kbd {
   gap: 6px;
   border: 1.5px solid var(--ink);
   background: #fff;
+  color: var(--ink);
+  text-decoration: none;
   border-radius: 10px;
   padding: 7px 14px;
   font-weight: 700;
@@ -963,75 +965,66 @@ kbd {
 .start-screen.hidden { display: none; }
 
 .start-card {
-  width: min(468px, 100%);
+  width: min(548px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
   background: #fffdf8;
   border: 2.5px solid var(--ink);
   border-radius: 20px;
   box-shadow: 0 8px 0 var(--ink), 0 22px 44px rgba(35, 32, 27, 0.22);
-  padding: 20px 22px 22px;
+  padding: 20px 24px 22px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 13px;
   animation: popIn 0.2s ease-out;
 }
-.start-hero {
-  width: 100%;
-  height: 96px;
-  display: block;
-  background: #f8f4e8;
-  border: 1.8px solid #dfd8c7;
-  border-radius: 14px;
+.start-top-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+}
+.start-detective-badge {
+  width: 68px;
+  height: 68px;
+  border-radius: 18px;
+  background: #fdf0d1;
+  border: 2.2px solid var(--ink);
+  box-shadow: 0 3px 0 var(--ink);
+  display: grid;
+  place-items: center;
+}
+.start-sound-btn {
+  justify-self: end;
+  padding: 5px 11px;
+  font-size: 12.5px;
 }
 .start-title {
-  margin: 0;
+  margin: -2px 0 0;
   font-size: 27px;
   font-weight: 900;
   letter-spacing: -0.02em;
   text-align: center;
   color: var(--ink);
 }
-.start-lead {
-  margin: -4px 0 0;
-  font-size: 14.5px;
-  line-height: 1.48;
-  color: #4f4a40;
-  text-align: center;
-  font-weight: 600;
-}
-.start-question {
-  display: inline-block;
-  margin-top: 3px;
-  font-size: 15.5px;
-  font-weight: 900;
-  color: #b82d2d;
-}
-.start-steps {
+.start-story {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   background: #f7f3e7;
   border: 1.5px solid #e2dccb;
-  border-radius: 13px;
-  padding: 11px 13px;
+  border-radius: 14px;
+  padding: 13px 16px;
 }
-.start-step {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  font-size: 13px;
-  line-height: 1.38;
+.start-story p {
+  margin: 0;
+  font-size: 13.8px;
+  line-height: 1.52;
+  color: #2f2b24;
+  font-weight: 500;
+}
+.start-story strong {
   color: var(--ink);
-}
-.step-ico {
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-  background: #fff;
-  border: 1.5px solid var(--ink);
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  margin-top: 1px;
+  font-weight: 800;
 }
 .start-pickers {
   display: grid;
@@ -1077,6 +1070,7 @@ kbd {
   font: inherit;
   font-size: 15px;
   font-weight: 900;
+  text-decoration: none;
   cursor: pointer;
   box-shadow: 0 3px 0 var(--ink);
   transition: transform 0.06s, background 0.12s;
