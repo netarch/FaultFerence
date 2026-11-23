@@ -2282,6 +2282,9 @@
               : 0.0;
           }
         }
+        if (ev.status === "accuse") {
+          postObj[String(ev.accusedNode)] = 1.0;
+        }
 
         const removed = [];
         for (const b of before) {

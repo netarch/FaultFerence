@@ -160,7 +160,7 @@ function triggerSloViolation() {
   G.shake = 14;
   Sound.sfx("fired");
   detectiveSay("SLO violated. You are fired!", "bad", 9000, "shocked");
-  $("fired-sub").textContent = `Faulty switch was ${G.state.failure.culprit_name}.`;
+  $("fired-sub").textContent = `${G.state.failure.culprit_name} was the faulty device.`;
   $("slo-fired-overlay").classList.remove("hidden");
   renderHud();
   renderWordleGrid(false);
@@ -193,7 +193,16 @@ function detectiveSay(text, kind = "info", ms = 4400, mood = null) {
 }
 
 function suspectNodes() {
-  return G.state.nodes.filter((n) => n.in_pool);
+  const base = G.state.nodes.filter((n) => n.in_pool);
+  for (const h of G.state.history) {
+    if (h.status === "accuse") {
+      const accId = h.action.nodes[0];
+      if (!base.some((n) => n.id === accId)) {
+        base.push(nodeById(accId));
+      }
+    }
+  }
+  return base;
 }
 
 function analyzeOutcome(res) {
@@ -641,8 +650,15 @@ function openPopover(target, filterKind = null) {
 
   if (target.type === "node") {
     const n = nodeById(target.id);
+    const status = effectiveStatus();
     $("pop-title").innerHTML = `${Sprites.icon("rack", 18)} <span>${n.name}</span>`;
-    if (n.is_endpoint) {
+    if (gameDone && n.id === G.state.failure.culprit) {
+      pill.textContent = "Faulty Device";
+      pill.className = "status-pill fault";
+    } else if (status === "mislocalized" && G.state.eq_set[0] === n.id) {
+      pill.textContent = "Wrongly Accused";
+      pill.className = "status-pill wrong";
+    } else if (n.is_endpoint) {
       pill.textContent = "ToR Switch";
       pill.className = "status-pill edge";
     } else if (n.suspect) {
@@ -742,7 +758,7 @@ function openPopover(target, filterKind = null) {
       <span class="act-ic">${Sprites.icon("accuse", 22)}</span>
       <div class="act-main">
         <div class="act-t"><span>Accuse as Faulty</span></div>
-        <div class="act-s">Declare this switch the culprit and close the case.</div>
+        <div class="act-s">Declare this the faulty device and close the case.</div>
       </div>
     `;
     accBtn.addEventListener("click", (ev) => {
@@ -858,12 +874,23 @@ function renderWordleGrid(animateLastRow) {
   corner.textContent = "ROUND";
   header.appendChild(corner);
 
-  const showCulpritCol = G.peekFault || effectiveStatus() !== "playing";
+  const status = effectiveStatus();
+  const showCulpritCol = G.peekFault || status !== "playing";
+  const wrongColId = status === "mislocalized" ? st.eq_set[0] : null;
   for (const n of sNodes) {
     const lbl = document.createElement("div");
-    lbl.className = "w-col-lbl" + (showCulpritCol && n.id === st.failure.culprit ? " culprit-col" : "");
+    let colCls = "w-col-lbl";
+    let statusTxt = n.suspect ? "suspect" : "ruled out";
+    if (showCulpritCol && n.id === st.failure.culprit) {
+      colCls += " culprit-col";
+      statusTxt = "faulty device";
+    } else if (wrongColId === n.id) {
+      colCls += " wrong-col";
+      statusTxt = "wrongly accused";
+    }
+    lbl.className = colCls;
     lbl.textContent = shortColName(n.name);
-    lbl.title = `${n.name} (${n.suspect ? "suspect" : "ruled out"}) — click to inspect`;
+    lbl.title = `${n.name} (${statusTxt}) — click to inspect`;
     lbl.addEventListener("click", () => {
       walkDetectiveTo({ type: "node", id: n.id }, () => openPopover({ type: "node", id: n.id }));
     });
@@ -876,7 +903,9 @@ function renderWordleGrid(animateLastRow) {
   st.history.forEach((h, rIdx) => {
     const row = document.createElement("div");
     const isLast = animateLastRow && rIdx === lastIdx && rIdx > 0;
-    row.className = "w-row" + (isLast && h.status === "rejected" ? " shake" : "");
+    const isFinalOutcomeRow = rIdx === lastIdx && status !== "playing";
+    const isWrongRow = rIdx === lastIdx && st.stats.status === "mislocalized";
+    row.className = "w-row" + (isLast && (h.status === "rejected" || isWrongRow) ? " shake" : "");
 
     const tag = document.createElement("div");
     tag.className = "w-step-tag";
@@ -886,6 +915,12 @@ function renderWordleGrid(animateLastRow) {
     } else if (h.status === "rejected") {
       tag.innerHTML = `${Sprites.icon("shield", 14)}<span>Blocked</span>`;
       tag.title = `${h.action.title} — ${h.reason}`;
+    } else if (h.status === "accuse") {
+      const wrongAcc = h.action.nodes[0] !== st.failure.culprit;
+      tag.innerHTML = `${Sprites.icon(wrongAcc ? "accuse_wrong" : "accuse", 15)}<span>#${h.move_num}</span>`;
+      tag.title = wrongAcc
+        ? `${h.action.title} — Wrong! ${st.failure.culprit_name} was the faulty device`
+        : `${h.action.title} — ${st.failure.culprit_name} was the faulty device`;
     } else {
       const out = analyzeOutcome(h);
       tag.innerHTML = `${Sprites.icon(h.action.icon, 15)}<span>#${h.move_num}</span>`;
@@ -901,27 +936,40 @@ function renderWordleGrid(animateLastRow) {
       row.appendChild(ban);
     } else {
       const eqSet = new Set(h.eq_nodes);
-      const solvedHere =
-        rIdx === lastIdx && st.stats.status === "localized" && h.eq_nodes.length === 1;
+      const wrongId = isWrongRow ? h.eq_nodes[0] : null;
 
       sNodes.forEach((n, cIdx) => {
         const tile = document.createElement("div");
         const inEq = eqSet.has(n.id);
         const postP = h.posteriors[String(n.id)];
         let cls = "w-tile filled ";
-        if (solvedHere && inEq && n.id === st.failure.culprit) {
-          cls += "green";
+        let tip = `${n.name}: ${inEq ? "Suspect" : "Ruled out"}`;
+
+        if (isFinalOutcomeRow) {
+          if (n.id === st.failure.culprit) {
+            cls += "green";
+            tip = `${n.name}: Faulty device`;
+          } else if (wrongId === n.id) {
+            cls += "red";
+            tip = `${n.name}: Wrongly accused`;
+          } else if (status === "slo_violated" && inEq) {
+            cls += postP < 0.08 && cols > 4 ? "amber low-p" : "amber";
+          } else {
+            cls += "grey";
+            tip = `${n.name}: Ruled out`;
+          }
         } else if (inEq) {
           cls += postP < 0.08 && cols > 4 ? "amber low-p" : "amber";
         } else {
           cls += "grey";
         }
+
         if (isLast) {
           cls += " flip";
           tile.style.animationDelay = `${cIdx * 36}ms`;
         }
         tile.className = cls;
-        tile.title = `${n.name}: ${inEq ? "Suspect" : "Ruled out"}`;
+        tile.title = tip;
         row.appendChild(tile);
       });
     }
@@ -961,21 +1009,21 @@ function renderEndCard() {
   }
   card.classList.remove("hidden");
   if (status === "localized") {
-    $("end-headline").innerHTML = `${Sprites.icon("trophy", 19)}<span>${G.playedByFives ? "FIVES Solved!" : "Solved!"} Faulty switch: ${st.failure.culprit_name}</span>`;
+    $("end-headline").innerHTML = `${Sprites.icon("trophy", 19)}<span>${G.playedByFives ? "FIVES Solved!" : "Solved!"} ${st.failure.culprit_name} was the faulty device.</span>`;
     const runLine = `${G.playedByFives ? "FIVES: " : ""}${s.actions} actions · ${fmtCountdown(sloRemainingSec())} SLO left · ${fmtImpactHud(s.disruption)} impact`;
     $("end-compare").textContent =
       G.playedByFives && G.userRunSummary ? `${runLine}\n${G.userRunSummary}` : runLine;
   } else if (status === "slo_violated") {
     $("end-headline").innerHTML = `${Sprites.icon("warning", 19)}<span>SLO violated. You are fired!</span>`;
     $("end-compare").textContent =
-      `Fault was ${st.failure.culprit_name} · ${s.actions} actions · ${fmtImpactHud(s.disruption)} impact`;
+      `${st.failure.culprit_name} was the faulty device · ${s.actions} actions · ${fmtImpactHud(s.disruption)} impact`;
   } else if (status === "mislocalized") {
     const wrong = nodeById(st.eq_set[0]).name;
-    $("end-headline").innerHTML = `${Sprites.icon("shield", 19)}<span>Picked ${wrong} — fault was ${st.failure.culprit_name}</span>`;
+    $("end-headline").innerHTML = `${Sprites.icon("accuse_wrong", 19)}<span>Picked ${wrong} — ${st.failure.culprit_name} was the faulty device.</span>`;
     $("end-compare").textContent =
       `${s.actions} actions · ${fmtImpactHud(s.disruption)} impact`;
   } else {
-    $("end-headline").innerHTML = `${Sprites.icon("warning", 19)}<span>${st.failure.culprit_name} slipped away!</span>`;
+    $("end-headline").innerHTML = `${Sprites.icon("warning", 19)}<span>Missed! ${st.failure.culprit_name} was the faulty device.</span>`;
     $("end-compare").textContent =
       `${s.actions} actions · ${fmtImpactHud(s.disruption)} impact`;
   }
@@ -1093,12 +1141,12 @@ async function applyAction(action) {
     if (G.state.stats.status === "localized") {
       Sound.stopMusic();
       setTimeout(() => Sound.sfx("win"), 180);
-      detectiveSay(`Solved! Faulty switch is ${G.state.failure.culprit_name}!`, "win", 7000, "happy");
+      detectiveSay(`Solved! ${G.state.failure.culprit_name} was the faulty device!`, "win", 7000, "happy");
       triggerConfetti();
     } else if (G.state.stats.status !== "playing") {
       Sound.stopMusic();
       setTimeout(() => Sound.sfx("wrong"), 180);
-      detectiveSay(`Lost track of ${G.state.failure.culprit_name}!`, "bad", 5500, "shocked");
+      detectiveSay(`Wrong trail! ${G.state.failure.culprit_name} was the faulty device.`, "bad", 5500, "shocked");
     } else if (cleared > 0) {
       setTimeout(() => Sound.sfx("cleared"), 200);
       detectiveSay(`${out.say} — ruled out ${cleared}!`, "good", 4400, "happy");
@@ -1127,12 +1175,12 @@ async function accuseSwitch(nodeId) {
   G.actions = data.actions;
   if (G.state.stats.status === "localized") {
     setTimeout(() => Sound.sfx("win"), 160);
-    detectiveSay(`Solved! ${G.state.failure.culprit_name} was the culprit!`, "win", 7000, "happy");
+    detectiveSay(`Solved! ${G.state.failure.culprit_name} was the faulty device!`, "win", 7000, "happy");
     triggerConfetti();
   } else {
     setTimeout(() => Sound.sfx("wrong"), 160);
     const nm = nodeById(nodeId).name;
-    detectiveSay(`Wrong! ${nm} was healthy — fault: ${G.state.failure.culprit_name}.`, "bad", 6500, "shocked");
+    detectiveSay(`Wrong! ${nm} was healthy — ${G.state.failure.culprit_name} was the faulty device.`, "bad", 6500, "shocked");
     G.shake = 10;
   }
   renderHud();
@@ -1378,8 +1426,10 @@ function drawEdges(ctx, now) {
 
 function drawNodes(ctx, now) {
   const st = G.state;
-  const solved = effectiveStatus() === "localized";
-  const showBug = G.peekFault || effectiveStatus() !== "playing";
+  const status = effectiveStatus();
+  const gameDone = status !== "playing";
+  const wrongNodeId = status === "mislocalized" ? st.eq_set[0] : null;
+  const showBug = G.peekFault || gameDone;
   const { rw, rh, compact } = rackDims();
   const pulse = Math.sin(now * 0.008) * 2.5;
 
@@ -1408,8 +1458,9 @@ function drawNodes(ctx, now) {
       rw,
       rh,
       {
-        suspect: n.suspect,
-        solved: solved && n.suspect && n.id === st.failure.culprit,
+        suspect: !gameDone && n.suspect,
+        solved: gameDone && n.id === st.failure.culprit,
+        wrongAccused: wrongNodeId === n.id,
         isEndpoint: n.is_endpoint,
         posterior: n.posterior,
         selected: isSel,
@@ -1997,7 +2048,7 @@ async function init() {
     $("btn-peek").classList.toggle("on", G.peekFault);
     renderWordleGrid(false);
     detectiveSay(
-      G.peekFault ? `Culprit: ${G.state.failure.culprit_name}` : "Culprit hidden",
+      G.peekFault ? `${G.state.failure.culprit_name} is the faulty device` : "Faulty device hidden",
       "info",
       2400
     );

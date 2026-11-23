@@ -260,6 +260,13 @@
       '<polyline points="9.6,12.2 11.3,13.9 14.6,10.3" stroke="#ffffff" stroke-width="2.2"/>'
     ),
 
+    accuse_wrong: (
+      '<circle cx="12" cy="12" r="8.5" fill="#fdecec"/>' +
+      '<circle cx="12" cy="12" r="4.8" fill="#d94848"/>' +
+      '<line x1="9.9" y1="9.9" x2="14.1" y2="14.1" stroke="#ffffff" stroke-width="2.2"/>' +
+      '<line x1="14.1" y1="9.9" x2="9.9" y2="14.1" stroke="#ffffff" stroke-width="2.2"/>'
+    ),
+
     chevron: (
       '<polyline points="6,9 12,15 18,9" stroke="currentColor" stroke-width="2.6"/>'
     ),
@@ -936,6 +943,7 @@
     const selected = Boolean(opts.selected);
     const hovered = Boolean(opts.hovered);
     const solved = Boolean(opts.solved);
+    const wrongAccused = Boolean(opts.wrongAccused);
     const suspect = Boolean(opts.suspect);
     const isEndpoint = Boolean(opts.isEndpoint);
     const compact = Boolean(opts.compact);
@@ -977,6 +985,12 @@
       topLidFill = "#6fae69";
       trimCol = "#264a23";
       led1 = "#c6f7c0";
+      led2 = "#ffffff";
+    } else if (wrongAccused) {
+      faceFill = RED;
+      topLidFill = "#ef6f6f";
+      trimCol = "#7a1c1c";
+      led1 = "#ffd6d6";
       led2 = "#ffffff";
     } else if (suspect) {
       faceFill = "#f3b643";
