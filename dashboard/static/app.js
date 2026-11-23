@@ -773,6 +773,9 @@ function positionPopover(target) {
 
 function walkDetectiveTo(target, cb) {
   const dest = targetStandPos(target);
+  if (Math.hypot(dest.x - G.det.x, dest.y - G.det.y) > 8 && !G.startScreenOpen) {
+    Sound.sfx("step");
+  }
   if (dest.x < G.det.x - 2) G.det.facing = -1;
   if (dest.x > G.det.x + 2) G.det.facing = 1;
   G.det.tx = dest.x;
@@ -2039,6 +2042,7 @@ async function init() {
   });
   G.canvas.addEventListener("mouseleave", () => { G.hovered = null; });
   G.canvas.addEventListener("click", (ev) => {
+    Sound.startMusic();
     const r = G.canvas.getBoundingClientRect();
     const mx = ev.clientX - r.left;
     const my = ev.clientY - r.top;
@@ -2047,6 +2051,7 @@ async function init() {
       handleRoomTargetClick(hit);
     } else {
       closePopover();
+      Sound.sfx("step");
       G.det.tx = Math.max(30, Math.min(G.vw - 30, mx));
       G.det.ty = Math.max(40, Math.min(G.vh - 58, my));
       if (mx < G.det.x - 2) G.det.facing = -1;
